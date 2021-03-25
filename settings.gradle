@@ -1,0 +1,5 @@
+include ':microservices:movie-service'
+include ':microservices:trivia-service'
+include ':microservices:review-service'
+include ':microservices:movie-composite-service'
+
