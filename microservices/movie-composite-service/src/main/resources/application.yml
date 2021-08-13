@@ -1,0 +1,21 @@
+server.port: 7000
+server.error.include-message: always
+
+app:
+  movie-service:
+    host: localhost
+    port: 7001
+  trivia-service:
+    host: localhost
+    port: 7002
+  review-service:
+    host: localhost
+    port: 7003
+  crazy-credit-service:
+    host: localhost
+    port: 7004
+
+logging:
+  level:
+    root: INFO
+    microservices: DEBUG
