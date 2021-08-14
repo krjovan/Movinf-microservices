@@ -2,11 +2,12 @@ package com.example.microservices.composite.movie.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
-import api.composite.movie.*;
-import api.core.movie.Movie;
-import api.core.trivia.Trivia;
-import api.core.review.Review;
-import api.core.crazycredit.CrazyCredit;
+
+import com.example.api.composite.movie.*;
+import com.example.api.core.crazycredit.CrazyCredit;
+import com.example.api.core.movie.Movie;
+import com.example.api.core.review.Review;
+import com.example.api.core.trivia.Trivia;
 import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.ServiceUtil;
 

@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import api.core.crazycredit.*;
-import api.core.movie.*;
-import api.core.review.*;
-import api.core.trivia.*;
+import com.example.api.core.crazycredit.*;
+import com.example.api.core.movie.*;
+import com.example.api.core.review.*;
+import com.example.api.core.trivia.*;
 import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.HttpErrorInfo;

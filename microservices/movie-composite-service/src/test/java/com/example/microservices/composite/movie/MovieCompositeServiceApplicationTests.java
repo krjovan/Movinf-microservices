@@ -17,12 +17,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import com.example.api.core.crazycredit.CrazyCredit;
+import com.example.api.core.movie.Movie;
+import com.example.api.core.review.Review;
+import com.example.api.core.trivia.Trivia;
 import com.example.microservices.composite.movie.services.MovieCompositeIntegration;
-
-import api.core.crazycredit.CrazyCredit;
-import api.core.movie.Movie;
-import api.core.review.Review;
-import api.core.trivia.Trivia;
 import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
 
