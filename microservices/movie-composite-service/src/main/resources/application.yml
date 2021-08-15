@@ -18,4 +18,23 @@ app:
 logging:
   level:
     root: INFO
-    microservices: DEBUG
+    com.example: DEBUG
+    
+---
+spring.profiles: docker
+
+server.port: 8080
+
+app:
+  movie-service:
+    host: movie
+    port: 8080
+  trivia-service:
+    host: trivia
+    port: 8080
+  review-service:
+    host: review
+    port: 8080
+  crazy-credit-service:
+    host: crazy-credit
+    port: 8080
