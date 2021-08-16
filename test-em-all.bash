@@ -97,7 +97,7 @@ then
     docker-compose up -d
 fi
 
-waitForService http://localhost:8080/movie-composite/1
+waitForService http://$HOST:$PORT/movie-composite/1
 
 # Verify that a normal request works, expect three trivia, three reviews and three crazy credits
 assertCurl 200 "curl http://$HOST:$PORT/movie-composite/1 -s"
