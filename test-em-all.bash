@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ./grdelw clean build
+# ./gradlew clean build
 # docker-compose build
 # docker-compose up -d
 #
@@ -52,7 +52,7 @@ function assertEqual() {
 
 function testUrl() {
     url=$@
-    if curl $url -ks -f -o /dev/null
+    if curl $url -ks -f
     then
           echo "Ok"
           return 0
@@ -97,7 +97,7 @@ then
     docker-compose up -d
 fi
 
-waitForService http://$HOST:$PORT/movie-composite/1
+waitForService http://localhost:8080/movie-composite/1
 
 # Verify that a normal request works, expect three trivia, three reviews and three crazy credits
 assertCurl 200 "curl http://$HOST:$PORT/movie-composite/1 -s"
