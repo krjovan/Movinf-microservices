@@ -1,3 +1,50 @@
+api:
+
+  common:
+    version: 1.0.0
+    title: Sample API
+    description: Description of the API...
+    termsOfServiceUrl: MINE TERMS OF SERVICE URL
+    license: License
+    licenseUrl: MY LICENSE URL
+
+    contact:
+      name: Contact
+      url: My
+      email: me@mail.com
+
+  movie-composite:
+
+    get-composite-movie:
+      description: Returns a composite view of the specified movie id
+      notes: |
+        # Normal response
+        If the requested movie id is found the method will return information regarding:
+        1. Movie information
+        1. Trivia
+        1. Reviews
+        1. Crazy credits
+        1. Service Addresses
+        (technical information regarding the addresses of the microservices that created the response)
+        # Expected partial and error responses
+        1. If no movie information is found, a <b>404 - Not Found</b> error will be returned
+        1. If no trivia, crazy credits or reviews are found for a movie, a partial response will be returned
+    create-composite-movie:
+      description: Creates a composite movie
+      notes: |
+        # Normal response
+        The composite movie information posted to the API will be split up and stored as separate movie-info, trivia, crazy credit and review entities.
+        # Expected error responses
+        1. If a movie with the same movieId as specified in the posted information already exists,
+           an <b>422 - Unprocessable Entity</b> error with a "duplicate key" error message will be returned
+    delete-composite-movie:
+      description: Deletes a movie composite
+      notes: |
+        # Normal response
+        Entities for movie information, trivia, crazy credits and reviews related to the specificed movieId will be deleted.
+        The implementation of the delete method is idempotent, i.e. it can be called several times with the same response.
+        This means that a delete request of a non existing movie will return <b>200 Ok</b>.
+
 server.port: 7000
 server.error.include-message: always
 
