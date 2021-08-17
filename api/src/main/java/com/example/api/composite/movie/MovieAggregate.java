@@ -8,16 +8,36 @@ public class MovieAggregate {
     private final String title;
     private final Date releaseDate;
 	private final String country;
+	private final int budget;
+    private final int gross;
+    private final int runtime;
     private final List<TriviaSummary> trivia;
     private final List<ReviewSummary> reviews;
 	private final List<CrazyCreditSummary> crazyCredits;
     private final ServiceAddresses serviceAddresses;
+    
+    public MovieAggregate() {
+    	this.movieId = 0;
+        this.title = null;
+        this.releaseDate = null;
+		this.country = null;
+		this.budget = 0;
+		this.gross = 0;
+		this.runtime = 0;
+        this.trivia = null;
+        this.reviews = null;
+		this.crazyCredits = null;
+        this.serviceAddresses = null;
+    }
 
     public MovieAggregate(
         int movieId,
         String title,
 		Date releaseDate,
         String country,
+        int budget,
+        int gross,
+        int runtime,
         List<TriviaSummary> trivia,
 		List<ReviewSummary> reviews,
         List<CrazyCreditSummary> crazyCredits,
@@ -27,6 +47,9 @@ public class MovieAggregate {
         this.title = title;
         this.releaseDate = releaseDate;
 		this.country = country;
+		this.budget = budget;
+		this.gross = gross;
+		this.runtime = runtime;
         this.trivia = trivia;
         this.reviews = reviews;
 		this.crazyCredits = crazyCredits;
@@ -49,7 +72,19 @@ public class MovieAggregate {
         return country;
     }
 
-    public List<TriviaSummary> getTrivia() {
+    public int getBudget() {
+		return budget;
+	}
+
+	public int getGross() {
+		return gross;
+	}
+
+	public int getRuntime() {
+		return runtime;
+	}
+
+	public List<TriviaSummary> getTrivia() {
         return trivia;
     }
 

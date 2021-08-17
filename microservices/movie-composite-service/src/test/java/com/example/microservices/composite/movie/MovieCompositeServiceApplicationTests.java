@@ -5,11 +5,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import static java.util.Collections.singletonList;
 import static org.mockito.Mockito.when;
+import org.springframework.http.HttpStatus;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
+import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import java.sql.Date;
+
+import com.example.api.composite.movie.MovieAggregate;
+import com.example.api.composite.movie.TriviaSummary;
+import com.example.api.composite.movie.ReviewSummary;
+import com.example.api.composite.movie.CrazyCreditSummary;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +30,7 @@ import com.example.api.core.trivia.Trivia;
 import com.example.microservices.composite.movie.services.MovieCompositeIntegration;
 import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
+import static reactor.core.publisher.Mono.just;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT)
@@ -59,49 +66,86 @@ class MovieCompositeServiceApplicationTests {
 	@Test
 	public void contextLoads() {
 	}
+	
+	@Test
+	public void createCompositeMovie1() {
+
+		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", Date.valueOf("2021-08-13"), "Some country", 0, 0, 0, null, null, null, null);
+
+		postAndVerifyMovie(compositeMovie, OK);
+	}
+
+	@Test
+	public void createCompositeMovie2() {
+		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", Date.valueOf("2021-08-13"), "Some country", 0, 0, 0,
+				singletonList(new TriviaSummary(1, Date.valueOf("2021-08-13"), "Some content", false)),
+				singletonList(new ReviewSummary(1, Date.valueOf("2021-08-13"), "Some title", "Some content", 0)), 
+				singletonList(new CrazyCreditSummary(1, "Some content", false)), 
+						null);
+
+		postAndVerifyMovie(compositeMovie, OK);
+	}
+
+	@Test
+	public void deleteCompositeMovie() {
+		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", Date.valueOf("2021-08-13"), "Some country", 0, 0, 0,
+				singletonList(new TriviaSummary(1, Date.valueOf("2021-08-13"), "Some content", false)),
+				singletonList(new ReviewSummary(1, Date.valueOf("2021-08-13"), "Some title", "Some content", 0)), 
+				singletonList(new CrazyCreditSummary(1, "Some content", false)), 
+						null);
+
+		postAndVerifyMovie(compositeMovie, OK);
+
+		deleteAndVerifyMovie(compositeMovie.getMovieId(), OK);
+		deleteAndVerifyMovie(compositeMovie.getMovieId(), OK);
+	}
 
 	@Test
 	public void getMovieById() {
-
-        client.get()
-            .uri("/movie-composite/" + MOVIE_ID_OK)
-            .accept(APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isOk()
-            .expectHeader().contentType(APPLICATION_JSON)
-            .expectBody()
-            .jsonPath("$.movieId").isEqualTo(MOVIE_ID_OK)
-            .jsonPath("$.trivia.length()").isEqualTo(1)
-            .jsonPath("$.reviews.length()").isEqualTo(1)
-        	.jsonPath("$.crazyCredits.length()").isEqualTo(1);
+		getAndVerifyMovie(MOVIE_ID_OK, OK)
+        .jsonPath("$.movieId").isEqualTo(MOVIE_ID_OK)
+        .jsonPath("$.trivia.length()").isEqualTo(1)
+        .jsonPath("$.reviews.length()").isEqualTo(1)
+    	.jsonPath("$.crazyCredits.length()").isEqualTo(1);
 	}
 
 	@Test
 	public void getMovieNotFound() {
-
-        client.get()
-            .uri("/movie-composite/" + MOVIE_ID_NOT_FOUND)
-            .accept(APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isNotFound()
-            .expectHeader().contentType(APPLICATION_JSON)
-            .expectBody()
-            .jsonPath("$.path").isEqualTo("/movie-composite/" + MOVIE_ID_NOT_FOUND)
-            .jsonPath("$.message").isEqualTo("NOT FOUND: " + MOVIE_ID_NOT_FOUND);
+		getAndVerifyMovie(MOVIE_ID_NOT_FOUND, NOT_FOUND)
+        .jsonPath("$.path").isEqualTo("/movie-composite/" + MOVIE_ID_NOT_FOUND)
+        .jsonPath("$.message").isEqualTo("NOT FOUND: " + MOVIE_ID_NOT_FOUND);
 	}
 
 	@Test
 	public void getMovieInvalidInput() {
+		getAndVerifyMovie(MOVIE_ID_INVALID, UNPROCESSABLE_ENTITY)
+        .jsonPath("$.path").isEqualTo("/movie-composite/" + MOVIE_ID_INVALID)
+        .jsonPath("$.message").isEqualTo("INVALID: " + MOVIE_ID_INVALID);
+	}
+	
+	private WebTestClient.BodyContentSpec getAndVerifyMovie(int movieId, HttpStatus expectedStatus) {
+		return client.get()
+			.uri("/movie-composite/" + movieId)
+			.accept(APPLICATION_JSON)
+			.exchange()
+			.expectStatus().isEqualTo(expectedStatus)
+			.expectHeader().contentType(APPLICATION_JSON)
+			.expectBody();
+	}
 
-        client.get()
-            .uri("/movie-composite/" + MOVIE_ID_INVALID)
-            .accept(APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isEqualTo(UNPROCESSABLE_ENTITY)
-            .expectHeader().contentType(APPLICATION_JSON)
-            .expectBody()
-            .jsonPath("$.path").isEqualTo("/movie-composite/" + MOVIE_ID_INVALID)
-            .jsonPath("$.message").isEqualTo("INVALID: " + MOVIE_ID_INVALID);
+	private void postAndVerifyMovie(MovieAggregate compositeMovie, HttpStatus expectedStatus) {
+		client.post()
+			.uri("/movie-composite")
+			.body(just(compositeMovie), MovieAggregate.class)
+			.exchange()
+			.expectStatus().isEqualTo(expectedStatus);
+	}
+
+	private void deleteAndVerifyMovie(int movieId, HttpStatus expectedStatus) {
+		client.delete()
+			.uri("/movie-composite/" + movieId)
+			.exchange()
+			.expectStatus().isEqualTo(expectedStatus);
 	}
 
 }

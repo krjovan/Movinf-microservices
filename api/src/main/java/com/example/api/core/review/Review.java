@@ -3,13 +3,13 @@ package com.example.api.core.review;
 import java.sql.Date;
 
 public class Review {
-    private final int movieId;
-    private final int reviewId;
-    private final Date publishDate;
-    private final String title;
-    private final String content;
-    private final int rating;
-    private final String serviceAddress;
+    private int movieId;
+    private int reviewId;
+    private Date publishDate;
+    private String title;
+    private String content;
+    private int rating;
+    private String serviceAddress;
 
     public Review() {
         movieId = 0;
@@ -66,4 +66,32 @@ public class Review {
 	public String getServiceAddress() {
         return serviceAddress;
     }
+
+	public void setMovieId(int movieId) {
+		this.movieId = movieId;
+	}
+
+	public void setReviewId(int reviewId) {
+		this.reviewId = reviewId;
+	}
+
+	public void setPublishDate(Date publishDate) {
+		this.publishDate = publishDate;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public void setRating(int rating) {
+		this.rating = rating;
+	}
+
+	public void setServiceAddress(String serviceAddress) {
+		this.serviceAddress = serviceAddress;
+	}
 }

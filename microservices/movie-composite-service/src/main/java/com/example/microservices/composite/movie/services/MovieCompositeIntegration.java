@@ -58,17 +58,35 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
         this.restTemplate = restTemplate;
         this.mapper = mapper;
 
-        movieServiceUrl        = "http://" + movieServiceHost + ":" + movieServicePort + "/movie/";
-        triviaServiceUrl = "http://" + triviaServiceHost + ":" + triviaServicePort + "/trivia?movieId=";
-        reviewServiceUrl         = "http://" + reviewServiceHost + ":" + reviewServicePort + "/review?movieId=";
-        crazyCreditServiceUrl    = "http://" + crazyCreditServiceHost + ":" + crazyCreditServicePort + "/crazy-credit?movieId=";
+        movieServiceUrl        = "http://" + movieServiceHost + ":" + movieServicePort + "/movie";
+        triviaServiceUrl = "http://" + triviaServiceHost + ":" + triviaServicePort + "/trivia";
+        reviewServiceUrl         = "http://" + reviewServiceHost + ":" + reviewServicePort + "/review";
+        crazyCreditServiceUrl    = "http://" + crazyCreditServiceHost + ":" + crazyCreditServicePort + "/crazy-credit";
+    }
+    
+    @Override
+    public Movie createMovie(Movie body) {
+
+        try {
+            String url = movieServiceUrl;
+            LOG.debug("Will post a new movie to URL: {}", url);
+
+            Movie movie = restTemplate.postForObject(url, body, Movie.class);
+            LOG.debug("Created a movie with id: {}", movie.getMovieId());
+
+            return movie;
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
     }
 
+    @Override
     public Movie getMovie(int movieId) {
 
         try {
-            String url = movieServiceUrl + movieId;
-            LOG.debug("Will call getMovie API on URL: {}", url);
+            String url = movieServiceUrl + "/" + movieId;
+            LOG.debug("Will call the getMovie API on URL: {}", url);
 
             Movie movie = restTemplate.getForObject(url, Movie.class);
             LOG.debug("Found a movie with id: {}", movie.getMovieId());
@@ -76,37 +94,44 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
             return movie;
 
         } catch (HttpClientErrorException ex) {
-
-            switch (ex.getStatusCode()) {
-
-            case NOT_FOUND:
-                throw new NotFoundException(getErrorMessage(ex));
-
-            case UNPROCESSABLE_ENTITY :
-                throw new InvalidInputException(getErrorMessage(ex));
-
-            default:
-                LOG.warn("Got a unexpected HTTP error: {}, will rethrow it", ex.getStatusCode());
-                LOG.warn("Error body: {}", ex.getResponseBodyAsString());
-                throw ex;
-            }
+            throw handleHttpClientException(ex);
         }
     }
-
-    private String getErrorMessage(HttpClientErrorException ex) {
+    
+    @Override
+    public void deleteMovie(int movieId) {
         try {
-            return mapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
-        } catch (IOException ioex) {
-            return ex.getMessage();
+            String url = movieServiceUrl + "/" + movieId;
+            LOG.debug("Will call the deleteMovie API on URL: {}", url);
+            restTemplate.delete(url);
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
         }
     }
+    
+    @Override
+    public Trivia createTrivia(Trivia body) {
+        try {
+        	String url = triviaServiceUrl;
+            LOG.debug("Will post a new trivia to URL: {}", url);
 
+            Trivia trivia = restTemplate.postForObject(url, body, Trivia.class);
+            LOG.debug("Created a trivia with id: {}", trivia.getTriviaId());
+
+            return trivia;
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
+    }
+    
+    @Override
     public List<Trivia> getTrivia(int movieId) {
 
         try {
-            String url = triviaServiceUrl + movieId;
+            String url = triviaServiceUrl + "?movieId=" + movieId;
 
-            LOG.debug("Will call getTrivia API on URL: {}", url);
+            LOG.debug("Will call the getTrivia API on URL: {}", url);
             List<Trivia> trivia = restTemplate.exchange(url, GET, null, new ParameterizedTypeReference<List<Trivia>>() {}).getBody();
 
             LOG.debug("Found {} trivia for movie with id: {}", trivia.size(), movieId);
@@ -117,13 +142,44 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
             return new ArrayList<>();
         }
     }
+    
+    @Override
+    public void deleteTrivia(int movieId) {
+        try {
+            String url = triviaServiceUrl + "?movieId=" + movieId;
+            LOG.debug("Will call the deleteTrivia API on URL: {}", url);
 
+            restTemplate.delete(url);
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
+    }
+    
+    @Override
+    public Review createReview(Review body) {
+
+        try {
+            String url = reviewServiceUrl;
+            LOG.debug("Will post a new review to URL: {}", url);
+
+            Review review = restTemplate.postForObject(url, body, Review.class);
+            LOG.debug("Created a review with id: {}", review.getMovieId());
+
+            return review;
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
+    }
+
+    @Override
     public List<Review> getReviews(int movieId) {
 
         try {
-            String url = reviewServiceUrl + movieId;
+            String url = reviewServiceUrl + "?movieId=" + movieId;
 
-            LOG.debug("Will call getReviews API on URL: {}", url);
+            LOG.debug("Will call the getReviews API on URL: {}", url);
             List<Review> reviews = restTemplate.exchange(url, GET, null, new ParameterizedTypeReference<List<Review>>() {}).getBody();
 
             LOG.debug("Found {} reviews for movie with id: {}", reviews.size(), movieId);
@@ -134,13 +190,44 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
             return new ArrayList<>();
         }
     }
+    
+    @Override
+    public void deleteReviews(int movieId) {
+        try {
+            String url = reviewServiceUrl + "?movieId=" + movieId;
+            LOG.debug("Will call the deleteReviews API on URL: {}", url);
 
+            restTemplate.delete(url);
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
+    }
+    
+    @Override
+    public CrazyCredit createCrazyCredit(CrazyCredit body) {
+
+        try {
+            String url = crazyCreditServiceUrl;
+            LOG.debug("Will post a new crazy credit to URL: {}", url);
+
+            CrazyCredit crazyCredit = restTemplate.postForObject(url, body, CrazyCredit.class);
+            LOG.debug("Created a crazy credit with id: {}", crazyCredit.getMovieId());
+
+            return crazyCredit;
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
+    }
+
+    @Override
 	public List<CrazyCredit> getCrazyCredits(int movieId) {
 		
 		try {
-            String url = crazyCreditServiceUrl + movieId;
+            String url = crazyCreditServiceUrl + "?movieId=" + movieId;
 
-            LOG.debug("Will call getCrazyCredits API on URL: {}", url);
+            LOG.debug("Will call the getCrazyCredits API on URL: {}", url);
             List<CrazyCredit> crazyCredits = restTemplate.exchange(url, GET, null, new ParameterizedTypeReference<List<CrazyCredit>>() {}).getBody();
 
             LOG.debug("Found {} crazy credits for movie with id: {}", crazyCredits.size(), movieId);
@@ -151,5 +238,42 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
             return new ArrayList<>();
         }
 	}
+    
+    @Override
+    public void deleteCrazyCredits(int movieId) {
+        try {
+            String url = crazyCreditServiceUrl + "?movieId=" + movieId;
+            LOG.debug("Will call the deleteCrazyCredits API on URL: {}", url);
+
+            restTemplate.delete(url);
+
+        } catch (HttpClientErrorException ex) {
+            throw handleHttpClientException(ex);
+        }
+    }
+    
+    private RuntimeException handleHttpClientException(HttpClientErrorException ex) {
+        switch (ex.getStatusCode()) {
+
+        case NOT_FOUND:
+            return new NotFoundException(getErrorMessage(ex));
+
+        case UNPROCESSABLE_ENTITY :
+            return new InvalidInputException(getErrorMessage(ex));
+
+        default:
+            LOG.warn("Got a unexpected HTTP error: {}, will rethrow it", ex.getStatusCode());
+            LOG.warn("Error body: {}", ex.getResponseBodyAsString());
+            return ex;
+        }
+    }
+
+    private String getErrorMessage(HttpClientErrorException ex) {
+        try {
+            return mapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
+        } catch (IOException ioex) {
+            return ex.getMessage();
+        }
+    }
 
 }

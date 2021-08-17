@@ -3,12 +3,12 @@ package com.example.api.core.trivia;
 import java.sql.Date;
 
 public class Trivia {
-    private final int movieId;
-    private final int triviaId;
-    private final Date publishDate;
-    private final String content;
-	private final boolean spoiler;
-    private final String serviceAddress;
+    private int movieId;
+    private int triviaId;
+    private Date publishDate;
+    private String content;
+	private boolean spoiler;
+    private String serviceAddress;
 
     public Trivia() {
     	movieId = 0;
@@ -58,4 +58,28 @@ public class Trivia {
 	public String getServiceAddress() {
         return serviceAddress;
     }
+
+	public void setMovieId(int movieId) {
+		this.movieId = movieId;
+	}
+
+	public void setTriviaId(int triviaId) {
+		this.triviaId = triviaId;
+	}
+
+	public void setPublishDate(Date publishDate) {
+		this.publishDate = publishDate;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public void setSpoiler(boolean spoiler) {
+		this.spoiler = spoiler;
+	}
+
+	public void setServiceAddress(String serviceAddress) {
+		this.serviceAddress = serviceAddress;
+	}
 }

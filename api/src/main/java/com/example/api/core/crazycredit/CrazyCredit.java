@@ -2,11 +2,11 @@ package com.example.api.core.crazycredit;
 
 public class CrazyCredit {
 	
-	private final int movieId;
-    private final int crazyCreditId;
-    private final String content;
-    private final boolean spoiler;
-    private final String serviceAddress;
+	private int movieId;
+    private int crazyCreditId;
+    private String content;
+    private boolean spoiler;
+    private String serviceAddress;
 
     public CrazyCredit() {
         movieId = 0;
@@ -49,4 +49,24 @@ public class CrazyCredit {
 	public String getServiceAddress() {
         return serviceAddress;
     }
+
+	public void setMovieId(int movieId) {
+		this.movieId = movieId;
+	}
+
+	public void setCrazyCreditId(int crazyCreditId) {
+		this.crazyCreditId = crazyCreditId;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public void setSpoiler(boolean spoiler) {
+		this.spoiler = spoiler;
+	}
+
+	public void setServiceAddress(String serviceAddress) {
+		this.serviceAddress = serviceAddress;
+	}
 }

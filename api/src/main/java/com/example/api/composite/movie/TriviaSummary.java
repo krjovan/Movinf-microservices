@@ -1,13 +1,24 @@
 package com.example.api.composite.movie;
 
+import java.sql.Date;
+
 public class TriviaSummary {
 
     private final int triviaId;
+    private final Date publishDate;
     private final String content;
     private final boolean spoiler;
 
-    public TriviaSummary(int triviaId, String content, boolean spoiler) {
+    public TriviaSummary() {
+    	this.triviaId = 0;
+    	this.publishDate = null;
+        this.content = null;
+        this.spoiler = false;
+    }
+    
+    public TriviaSummary(int triviaId, Date publishDate, String content, boolean spoiler) {
         this.triviaId = triviaId;
+        this.publishDate = publishDate;
         this.content = content;
         this.spoiler = spoiler;
     }
@@ -16,7 +27,11 @@ public class TriviaSummary {
         return triviaId;
     }
 
-    public String getContent() {
+    public Date getPublishDate() {
+		return publishDate;
+	}
+
+	public String getContent() {
         return content;
     }
 

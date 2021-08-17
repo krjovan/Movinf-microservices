@@ -6,6 +6,12 @@ public class CrazyCreditSummary {
     private final String content;
     private final boolean spoiler;
 
+    public CrazyCreditSummary() {
+        this.crazyCreditId = 0;
+        this.content = null;
+        this.spoiler = false;
+    }
+    
     public CrazyCreditSummary(int crazyCreditId, String content, boolean spoiler) {
         this.crazyCreditId = crazyCreditId;
         this.content = content;
