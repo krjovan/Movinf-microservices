@@ -1,97 +1,149 @@
 package microservices.core.trivia;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import com.example.api.core.trivia.Trivia;
+import com.example.microservices.core.trivia.persistence.TriviaRepository;
+import static org.junit.Assert.assertEquals;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
+import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static reactor.core.publisher.Mono.just;
+
+import java.sql.Date;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment=RANDOM_PORT)
+@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
 class TriviaServiceApplicationTests {
 
 	@Autowired
 	private WebTestClient client;
+	
+	@Autowired
+	private TriviaRepository repository;
+
+	@Before
+	public void setupDb() {
+		repository.deleteAll();
+	}
 
 	@Test
 	public void getTriviaByMovieId() {
 
 		int movieId = 1;
 
-		client.get()
-			.uri("/trivia?movieId=" + movieId)
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isOk()
-			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody()
-			.jsonPath("$.length()").isEqualTo(3)
-			.jsonPath("$[0].movieId").isEqualTo(movieId);
+		postAndVerifyTrivia(movieId, 1, OK);
+		postAndVerifyTrivia(movieId, 2, OK);
+		postAndVerifyTrivia(movieId, 3, OK);
+
+		assertEquals(3, repository.findByMovieId(movieId).size());
+
+		getAndVerifyTriviaByMovieId(movieId, OK)
+		.jsonPath("$.length()").isEqualTo(3)
+		.jsonPath("$[2].movieId").isEqualTo(movieId)
+		.jsonPath("$[2].triviaId").isEqualTo(3);
+	}
+	
+	@Test
+	public void duplicateError() {
+		int movieId = 1;
+		int triviaId = 1;
+
+		postAndVerifyTrivia(movieId, triviaId, OK)
+			.jsonPath("$.movieId").isEqualTo(movieId)
+			.jsonPath("$.triviaId").isEqualTo(triviaId);
+
+		assertEquals(1, repository.count());
+
+		postAndVerifyTrivia(movieId, triviaId, UNPROCESSABLE_ENTITY)
+			.jsonPath("$.path").isEqualTo("/trivia")
+			.jsonPath("$.message").isEqualTo("Duplicate key, Movie Id: 1, Trivia Id:1");
+
+		assertEquals(1, repository.count());
+	}
+
+	@Test
+	public void deleteTrivia() {
+		int movieId = 1;
+		int triviaId = 1;
+
+		postAndVerifyTrivia(movieId, triviaId, OK);
+		assertEquals(1, repository.findByMovieId(movieId).size());
+
+		deleteAndVerifyTriviaByMovieId(movieId, OK);
+		assertEquals(0, repository.findByMovieId(movieId).size());
+
+		deleteAndVerifyTriviaByMovieId(movieId, OK);
 	}
 
 	@Test
 	public void getTriviaMissingParameter() {
-
-		client.get()
-			.uri("/trivia")
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isEqualTo(BAD_REQUEST)
-			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody()
-			.jsonPath("$.path").isEqualTo("/trivia")
-			.jsonPath("$.message").isEqualTo("Required int parameter 'movieId' is not present");
+		getAndVerifyTriviaByMovieId("", BAD_REQUEST)
+		.jsonPath("$.path").isEqualTo("/trivia")
+		.jsonPath("$.message").isEqualTo("Required int parameter 'movieId' is not present");
 	}
 
 	@Test
 	public void getTriviaInvalidParameter() {
-
-		client.get()
-			.uri("/trivia?movieId=no-integer")
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isEqualTo(BAD_REQUEST)
-			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody()
-			.jsonPath("$.path").isEqualTo("/trivia")
-			.jsonPath("$.message").isEqualTo("Type mismatch.");
+		getAndVerifyTriviaByMovieId("?movieId=no-integer", BAD_REQUEST)
+		.jsonPath("$.path").isEqualTo("/trivia")
+		.jsonPath("$.message").isEqualTo("Type mismatch.");
 	}
 
 	@Test
 	public void getTriviaNotFound() {
-
-		int movieIdNotFound = 113;
-
-		client.get()
-			.uri("/trivia?movieId=" + movieIdNotFound)
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isOk()
-			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody()
+		getAndVerifyTriviaByMovieId("?movieId=113", OK)
 			.jsonPath("$.length()").isEqualTo(0);
 	}
 
 	@Test
 	public void getTriviaInvalidParameterNegativeValue() {
-
 		int movieIdInvalid = -1;
+		getAndVerifyTriviaByMovieId("?movieId=" + movieIdInvalid, UNPROCESSABLE_ENTITY)
+		.jsonPath("$.path").isEqualTo("/trivia")
+		.jsonPath("$.message").isEqualTo("Invalid movieId: " + movieIdInvalid);
+	}
+	
+	private WebTestClient.BodyContentSpec getAndVerifyTriviaByMovieId(int movieId, HttpStatus expectedStatus) {
+		return getAndVerifyTriviaByMovieId("?movieId=" + movieId, expectedStatus);
+	}
 
-		client.get()
-			.uri("/trivia?movieId=" + movieIdInvalid)
+	private WebTestClient.BodyContentSpec getAndVerifyTriviaByMovieId(String movieIdQuery, HttpStatus expectedStatus) {
+		return client.get()
+			.uri("/trivia" + movieIdQuery)
 			.accept(APPLICATION_JSON)
 			.exchange()
-			.expectStatus().isEqualTo(UNPROCESSABLE_ENTITY)
+			.expectStatus().isEqualTo(expectedStatus)
 			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody()
-			.jsonPath("$.path").isEqualTo("/trivia")
-			.jsonPath("$.message").isEqualTo("Invalid movieId: " + movieIdInvalid);
+			.expectBody();
+	}
+
+	private WebTestClient.BodyContentSpec postAndVerifyTrivia(int movieId, int triviaId, HttpStatus expectedStatus) {
+		Trivia trivia = new Trivia(movieId, triviaId, Date.valueOf("2021-08-12"), "Some content " + triviaId, false, "SA");
+		return client.post()
+			.uri("/trivia")
+			.body(just(trivia), Trivia.class)
+			.accept(APPLICATION_JSON)
+			.exchange()
+			.expectStatus().isEqualTo(expectedStatus)
+			.expectHeader().contentType(APPLICATION_JSON)
+			.expectBody();
+	}
+
+	private WebTestClient.BodyContentSpec deleteAndVerifyTriviaByMovieId(int movieId, HttpStatus expectedStatus) {
+		return client.delete()
+			.uri("/trivia?movieId=" + movieId)
+			.accept(APPLICATION_JSON)
+			.exchange()
+			.expectStatus().isEqualTo(expectedStatus)
+			.expectBody();
 	}
 
 }
