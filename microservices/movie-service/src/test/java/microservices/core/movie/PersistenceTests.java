@@ -45,7 +45,7 @@ public class PersistenceTests {
 
     @Test
    	public void create() {
-        MovieEntity newEntity = new MovieEntity(1, "n", Date.valueOf("2021-08-12"),"s", 0, 0, 0);
+        MovieEntity newEntity = new MovieEntity(2, "n", Date.valueOf("2021-08-12"),"s", 0, 0, 0);
         repository.save(newEntity);
 
         MovieEntity foundEntity = repository.findById(newEntity.getId()).get();
