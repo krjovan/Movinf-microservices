@@ -80,6 +80,54 @@ function waitForService() {
     done
 }
 
+function recreateComposite() {
+    local movieId=$1
+    local composite=$2
+
+    assertCurl 200 "curl -X DELETE http://$HOST:$PORT/movie-composite/${movieId} -s"
+    curl -X POST http://$HOST:$PORT/movie-composite -H "Content-Type: application/json" --data "$composite"
+}
+
+function setupTestdata() {
+
+    body=\
+'{"movieId":1,"title":"Movie 1","releaseDate":"2021-08-12","country":"Country 1","budget":0,"gross":0,"runtime":0, "trivia":[
+        {"triviaId":1,"publishDate":"2021-08-12","content":"content 1","spoiler":false},
+        {"triviaId":2,"publishDate":"2021-08-12","content":"content 2","spoiler":false},
+        {"triviaId":3,"publishDate":"2021-08-12","content":"content 3","spoiler":false}
+    ], "reviews":[
+        {"reviewId":1,"publishDate":"2021-08-12","title":"title 1","content":"content 1","rating":0},
+        {"reviewId":2,"publishDate":"2021-08-12","title":"title 2","content":"content 2","rating":0},
+        {"reviewId":3,"publishDate":"2021-08-12","title":"title 3","content":"content 3","rating":0}
+    ], "crazyCredits":[
+        {"crazyCreditId":1,"content":"content 1","spoiler":false},
+        {"crazyCreditId":2,"content":"content 2","spoiler":false},
+        {"crazyCreditId":3,"content":"content 3","spoiler":false}
+    ]}'
+    recreateComposite 1 "$body"
+
+    body=\
+'{"movieId":113,"title":"Movie 113","releaseDate":"2021-08-12","country":"Country 113","budget":0,"gross":0,"runtime":0, "reviews":[
+	{"reviewId":1,"publishDate":"2021-08-12","title":"title 1","content":"content 1","rating":0},
+    {"reviewId":2,"publishDate":"2021-08-12","title":"title 2","content":"content 2","rating":0},
+    {"reviewId":3,"publishDate":"2021-08-12","title":"title 3","content":"content 3","rating":0}
+]}'
+    recreateComposite 113 "$body"
+
+    body=\
+'{"movieId":213,"title":"Movie 213","releaseDate":"2021-08-12","country":"Country 213","budget":0,"gross":0,"runtime":0, "trivia":[
+		{"triviaId":1,"publishDate":"2021-08-12","content":"content 1","spoiler":false},
+        {"triviaId":2,"publishDate":"2021-08-12","content":"content 2","spoiler":false},
+        {"triviaId":3,"publishDate":"2021-08-12","content":"content 3","spoiler":false}
+	], "crazyCredits":[
+        {"crazyCreditId":1,"content":"content 1","spoiler":false},
+        {"crazyCreditId":2,"content":"content 2","spoiler":false},
+        {"crazyCreditId":3,"content":"content 3","spoiler":false}
+	]
+}'
+    recreateComposite 213 "$body"
+
+}
 
 set -e
 
@@ -97,7 +145,9 @@ then
     docker-compose up -d
 fi
 
-waitForService http://$HOST:$PORT/movie-composite/1
+waitForService curl -X DELETE http://$HOST:$PORT/movie-composite/13
+
+setupTestdata
 
 # Verify that a normal request works, expect three trivia, three reviews and three crazy credits
 assertCurl 200 "curl http://$HOST:$PORT/movie-composite/1 -s"
