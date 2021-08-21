@@ -25,7 +25,6 @@ public class MovieServiceApplication {
 	private static final Logger LOG = LoggerFactory.getLogger(MovieServiceApplication.class);
 
 	public static void main(String[] args) {
-		SpringApplication.run(MovieServiceApplication.class, args);
 		ConfigurableApplicationContext ctx = SpringApplication.run(MovieServiceApplication.class, args);
 
 		String mongodDbHost = ctx.getEnvironment().getProperty("spring.data.mongodb.host");
