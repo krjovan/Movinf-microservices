@@ -13,7 +13,7 @@ import com.example.api.core.trivia.Trivia;
 import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.ServiceUtil;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 

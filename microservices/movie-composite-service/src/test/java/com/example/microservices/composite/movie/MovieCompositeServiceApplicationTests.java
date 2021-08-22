@@ -10,7 +10,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
-import java.sql.Date;
+import java.util.Date;
 
 import com.example.api.composite.movie.MovieAggregate;
 import com.example.api.composite.movie.TriviaSummary;
@@ -50,11 +50,11 @@ class MovieCompositeServiceApplicationTests {
 	public void setUp() {
 
 		when(compositeIntegration.getMovie(MOVIE_ID_OK)).
-			thenReturn(new Movie(MOVIE_ID_OK, "Test Title", Date.valueOf("2021-08-13"), "Test country", 0, 0, 0, "mock-address"));
+			thenReturn(new Movie(MOVIE_ID_OK, "Test Title", new Date(), "Test country", 0, 0, 0, "mock-address"));
 		when(compositeIntegration.getTrivia(MOVIE_ID_OK)).
-			thenReturn(singletonList(new Trivia(MOVIE_ID_OK, 1, Date.valueOf("2021-08-13"), "Test content", false, "mock address")));
+			thenReturn(singletonList(new Trivia(MOVIE_ID_OK, 1, new Date(), "Test content", false, "mock address")));
 		when(compositeIntegration.getReviews(MOVIE_ID_OK)).
-			thenReturn(singletonList(new Review(MOVIE_ID_OK, 1, Date.valueOf("2021-08-13"), "Test title", "Test content", 3, "mock address")));
+			thenReturn(singletonList(new Review(MOVIE_ID_OK, 1, new Date(), "Test title", "Test content", 3, "mock address")));
 		when(compositeIntegration.getCrazyCredits(MOVIE_ID_OK)).
 			thenReturn(singletonList(new CrazyCredit(MOVIE_ID_OK, 1, "Test content", false, "mock address")));
 		
@@ -70,16 +70,16 @@ class MovieCompositeServiceApplicationTests {
 	@Test
 	public void createCompositeMovie1() {
 
-		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", Date.valueOf("2021-08-13"), "Some country", 0, 0, 0, null, null, null, null);
+		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", new Date(), "Some country", 0, 0, 0, null, null, null, null);
 
 		postAndVerifyMovie(compositeMovie, OK);
 	}
 
 	@Test
 	public void createCompositeMovie2() {
-		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", Date.valueOf("2021-08-13"), "Some country", 0, 0, 0,
-				singletonList(new TriviaSummary(1, Date.valueOf("2021-08-13"), "Some content", false)),
-				singletonList(new ReviewSummary(1, Date.valueOf("2021-08-13"), "Some title", "Some content", 0)), 
+		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", new Date(), "Some country", 0, 0, 0,
+				singletonList(new TriviaSummary(1, new Date(), "Some content", false)),
+				singletonList(new ReviewSummary(1, new Date(), "Some title", "Some content", 0)), 
 				singletonList(new CrazyCreditSummary(1, "Some content", false)), 
 						null);
 
@@ -88,9 +88,9 @@ class MovieCompositeServiceApplicationTests {
 
 	@Test
 	public void deleteCompositeMovie() {
-		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", Date.valueOf("2021-08-13"), "Some country", 0, 0, 0,
-				singletonList(new TriviaSummary(1, Date.valueOf("2021-08-13"), "Some content", false)),
-				singletonList(new ReviewSummary(1, Date.valueOf("2021-08-13"), "Some title", "Some content", 0)), 
+		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", new Date(), "Some country", 0, 0, 0,
+				singletonList(new TriviaSummary(1, new Date(), "Some content", false)),
+				singletonList(new ReviewSummary(1, new Date(), "Some title", "Some content", 0)), 
 				singletonList(new CrazyCreditSummary(1, "Some content", false)), 
 						null);
 

@@ -1,6 +1,6 @@
 package com.example.microservices.core.review.persistence;
 
-import java.sql.Date;
+import java.util.Date;
 
 import javax.persistence.*;
 

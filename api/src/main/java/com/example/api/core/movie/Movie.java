@@ -1,6 +1,6 @@
 package com.example.api.core.movie;
 
-import java.sql.Date;
+import java.util.Date;
 
 public class Movie {
     private int movieId;

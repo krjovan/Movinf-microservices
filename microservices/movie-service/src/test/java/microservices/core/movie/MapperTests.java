@@ -8,7 +8,7 @@ import com.example.microservices.core.movie.services.MovieMapper;
 
 import static org.junit.Assert.*;
 
-import java.sql.Date;
+import java.util.Date;
 
 public class MapperTests {
 
@@ -19,7 +19,7 @@ public class MapperTests {
 
         assertNotNull(mapper);
 
-        Movie api = new Movie(1, "n", Date.valueOf("2021-08-12"),"s", 0, 0, 0, "sa");
+        Movie api = new Movie(1, "n", new Date(),"s", 0, 0, 0, "sa");
 
         MovieEntity entity = mapper.apiToEntity(api);
 

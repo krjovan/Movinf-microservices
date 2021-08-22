@@ -20,7 +20,7 @@ import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static reactor.core.publisher.Mono.just;
 
-import java.sql.Date;
+import java.util.Date;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
@@ -104,7 +104,7 @@ class MovieServiceApplicationTests {
 	}
 
 	private WebTestClient.BodyContentSpec postAndVerifyMovie(int movieId, HttpStatus expectedStatus) {
-		Movie movie = new Movie(movieId, "n", Date.valueOf("2021-08-12"),"s", 0, 0, 0, "SA");
+		Movie movie = new Movie(movieId, "n", new Date(),"s", 0, 0, 0, "SA");
 		return client.post()
 			.uri("/movie")
 			.body(just(movie), Movie.class)

@@ -6,7 +6,7 @@ import com.example.api.core.trivia.Trivia;
 import com.example.microservices.core.trivia.persistence.TriviaEntity;
 import com.example.microservices.core.trivia.services.TriviaMapper;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.Collections;
 import java.util.List;
 
@@ -21,7 +21,7 @@ public class MapperTests {
 
         assertNotNull(mapper);
 
-        Trivia api = new Trivia(1, 2, Date.valueOf("2021-08-12"), "Some contet", false, "adr");
+        Trivia api = new Trivia(1, 2, new Date(), "Some contet", false, "adr");
 
         TriviaEntity entity = mapper.apiToEntity(api);
 
@@ -46,7 +46,7 @@ public class MapperTests {
 
         assertNotNull(mapper);
 
-        Trivia api = new Trivia(1, 2, Date.valueOf("2021-08-12"), "Some contet", false, "adr");
+        Trivia api = new Trivia(1, 2, new Date(), "Some contet", false, "adr");
         List<Trivia> apiList = Collections.singletonList(api);
 
         List<TriviaEntity> entityList = mapper.apiListToEntityList(apiList);

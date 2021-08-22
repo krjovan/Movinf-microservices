@@ -10,7 +10,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.test.context.junit4.SpringRunner;
 import com.example.microservices.core.trivia.persistence.*;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -29,7 +29,7 @@ public class PersistenceTests {
    	public void setupDb() {
    		repository.deleteAll();
 
-        TriviaEntity entity = new TriviaEntity(1, 2, Date.valueOf("2021-08-12"), "Some contet", false);
+        TriviaEntity entity = new TriviaEntity(1, 2, new Date(), "Some contet", false);
         savedEntity = repository.save(entity);
 
         assertEqualsTrivia(entity, savedEntity);
@@ -39,7 +39,7 @@ public class PersistenceTests {
     @Test
    	public void create() {
 
-    	TriviaEntity newEntity = new TriviaEntity(1, 3, Date.valueOf("2021-08-12"), "Some contet", false);
+    	TriviaEntity newEntity = new TriviaEntity(1, 3, new Date(), "Some contet", false);
         repository.save(newEntity);
 
         TriviaEntity foundEntity = repository.findById(newEntity.getId()).get();
@@ -74,7 +74,7 @@ public class PersistenceTests {
 
     @Test(expected = DuplicateKeyException.class)
    	public void duplicateError() {
-    	TriviaEntity entity = new TriviaEntity(1, 2, Date.valueOf("2021-08-12"), "Some content", false);
+    	TriviaEntity entity = new TriviaEntity(1, 2, new Date(), "Some content", false);
         repository.save(entity);
     }
 

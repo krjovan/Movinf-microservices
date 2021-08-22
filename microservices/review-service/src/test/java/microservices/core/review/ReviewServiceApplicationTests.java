@@ -18,7 +18,7 @@ import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static reactor.core.publisher.Mono.just;
 
-import java.sql.Date;
+import java.util.Date;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {
@@ -125,7 +125,7 @@ class ReviewServiceApplicationTests {
 	}
 
 	private WebTestClient.BodyContentSpec postAndVerifyReview(int movieId, int reviewId, HttpStatus expectedStatus) {
-		Review review = new Review(movieId, reviewId, Date.valueOf("2021-08-12"), "Title " + reviewId, "Content " + reviewId, 0, "SA");
+		Review review = new Review(movieId, reviewId, new Date(), "Title " + reviewId, "Content " + reviewId, 0, "SA");
 		return client.post()
 			.uri("/review")
 			.body(just(review), Review.class)

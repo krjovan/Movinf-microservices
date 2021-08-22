@@ -6,7 +6,7 @@ import com.example.api.core.review.Review;
 import com.example.microservices.core.review.persistence.ReviewEntity;
 import com.example.microservices.core.review.services.ReviewMapper;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.Collections;
 import java.util.List;
 
@@ -21,7 +21,7 @@ public class MapperTests {
     public void mapperTests() {
         assertNotNull(mapper);
 
-        Review api = new Review(1, 2, Date.valueOf("2021-08-12"), "Some title", "Some content", 0, "adr");
+        Review api = new Review(1, 2, new Date(), "Some title", "Some content", 0, "adr");
 
         ReviewEntity entity = mapper.apiToEntity(api);
 
@@ -48,7 +48,7 @@ public class MapperTests {
 
         assertNotNull(mapper);
 
-        Review api = new Review(1, 2, Date.valueOf("2021-08-12"), "Some title", "Some content", 0, "adr");
+        Review api = new Review(1, 2, new Date(), "Some title", "Some content", 0, "adr");
         List<Review> apiList = Collections.singletonList(api);
 
         List<ReviewEntity> entityList = mapper.apiListToEntityList(apiList);

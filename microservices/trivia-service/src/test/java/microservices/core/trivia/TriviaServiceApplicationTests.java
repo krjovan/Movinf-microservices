@@ -17,7 +17,7 @@ import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static reactor.core.publisher.Mono.just;
 
-import java.sql.Date;
+import java.util.Date;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
@@ -126,7 +126,7 @@ class TriviaServiceApplicationTests {
 	}
 
 	private WebTestClient.BodyContentSpec postAndVerifyTrivia(int movieId, int triviaId, HttpStatus expectedStatus) {
-		Trivia trivia = new Trivia(movieId, triviaId, Date.valueOf("2021-08-12"), "Some content " + triviaId, false, "SA");
+		Trivia trivia = new Trivia(movieId, triviaId, new Date(), "Some content " + triviaId, false, "SA");
 		return client.post()
 			.uri("/trivia")
 			.body(just(trivia), Trivia.class)

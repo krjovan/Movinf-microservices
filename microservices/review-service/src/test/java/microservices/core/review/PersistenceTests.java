@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.microservices.core.review.persistence.ReviewEntity;
 import com.example.microservices.core.review.persistence.ReviewRepository;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -33,7 +33,7 @@ public class PersistenceTests {
    	public void setupDb() {
    		repository.deleteAll();
 
-        ReviewEntity entity = new ReviewEntity(1, 2, Date.valueOf("2021-08-12"), "Some title", "Some content", 0);
+        ReviewEntity entity = new ReviewEntity(1, 2, new Date(), "Some title", "Some content", 0);
         savedEntity = repository.save(entity);
 
         assertEqualsReview(entity, savedEntity);
@@ -43,7 +43,7 @@ public class PersistenceTests {
     @Test
    	public void create() {
 
-        ReviewEntity newEntity = new ReviewEntity(1, 3, Date.valueOf("2021-08-12"), "Some title", "Some content", 0);
+        ReviewEntity newEntity = new ReviewEntity(1, 3, new Date(), "Some title", "Some content", 0);
         repository.save(newEntity);
 
         ReviewEntity foundEntity = repository.findById(newEntity.getId()).get();
@@ -78,7 +78,7 @@ public class PersistenceTests {
 
     @Test(expected = DataIntegrityViolationException.class)
    	public void duplicateError() {
-        ReviewEntity entity = new ReviewEntity(1, 2, Date.valueOf("2021-08-12"), "Some title", "Some content", 0);
+        ReviewEntity entity = new ReviewEntity(1, 2, new Date(), "Some title", "Some content", 0);
         repository.save(entity);
     }
 

@@ -14,7 +14,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import com.example.microservices.core.movie.persistence.MovieEntity;
 import com.example.microservices.core.movie.persistence.MovieRepository;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -36,7 +36,7 @@ public class PersistenceTests {
    	public void setupDb() {
    		repository.deleteAll();
 
-   		MovieEntity entity = new MovieEntity(1, "n", Date.valueOf("2021-08-12"),"s", 0, 0, 0);
+   		MovieEntity entity = new MovieEntity(1, "n", new Date(),"s", 0, 0, 0);
         savedEntity = repository.save(entity);
 
         assertEqualsMovie(entity, savedEntity);
@@ -45,7 +45,7 @@ public class PersistenceTests {
 
     @Test
    	public void create() {
-        MovieEntity newEntity = new MovieEntity(2, "n", Date.valueOf("2021-08-12"),"s", 0, 0, 0);
+        MovieEntity newEntity = new MovieEntity(2, "n", new Date(),"s", 0, 0, 0);
         repository.save(newEntity);
 
         MovieEntity foundEntity = repository.findById(newEntity.getId()).get();
@@ -80,7 +80,7 @@ public class PersistenceTests {
 
     @Test(expected = DuplicateKeyException.class)
    	public void duplicateError() {
-    	MovieEntity entity = new MovieEntity(savedEntity.getMovieId(),"n", Date.valueOf("2021-08-12"),"s", 0, 0, 0);
+    	MovieEntity entity = new MovieEntity(savedEntity.getMovieId(),"n", new Date(),"s", 0, 0, 0);
         repository.save(entity);
     }
 
@@ -114,7 +114,7 @@ public class PersistenceTests {
         repository.deleteAll();
 
         List<MovieEntity> newMovies = rangeClosed(1001, 1010)
-            .mapToObj(i -> new MovieEntity(i, "name " + i, Date.valueOf("2021-08-12"),"s", 0, 0, 0))
+            .mapToObj(i -> new MovieEntity(i, "name " + i, new Date(),"s", 0, 0, 0))
             .collect(Collectors.toList());
         repository.saveAll(newMovies);
 

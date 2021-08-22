@@ -1,6 +1,6 @@
 package com.example.api.core.trivia;
 
-import java.sql.Date;
+import java.util.Date;
 
 public class Trivia {
     private int movieId;
