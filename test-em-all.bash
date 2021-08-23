@@ -164,14 +164,14 @@ assertCurl 200 "curl http://$HOST:$PORT/movie-composite/113 -s"
 assertEqual 113 $(echo $RESPONSE | jq .movieId)
 assertEqual 0 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
-assertEqual 3 $(echo $RESPONSE | jq ".crazyCredits | length")
+assertEqual 0 $(echo $RESPONSE | jq ".crazyCredits | length")
 
 # Verify that no reviews and no crazy credits are returned for movieId 213
 assertCurl 200 "curl http://$HOST:$PORT/movie-composite/213 -s"
 assertEqual 213 $(echo $RESPONSE | jq .movieId)
 assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 0 $(echo $RESPONSE | jq ".reviews | length")
-assertEqual 0 $(echo $RESPONSE | jq ".crazyCredits | length")
+assertEqual 3 $(echo $RESPONSE | jq ".crazyCredits | length")
 
 # Verify that a 422 (Unprocessable Entity) error is returned for a movieId that is out of range (-1)
 assertCurl 422 "curl http://$HOST:$PORT/movie-composite/-1 -s"
