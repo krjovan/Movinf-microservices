@@ -1,4 +1,4 @@
-package microservices.core.crazycredit;
+package com.example.microservices.core.crazycredit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -20,7 +20,7 @@ import static reactor.core.publisher.Mono.just;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
-class CrazyCreditServiceApplicationTests {
+public class CrazyCreditServiceApplicationTests {
 
 	@Autowired
 	private WebTestClient client;

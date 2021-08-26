@@ -1,4 +1,4 @@
-package microservices.core.review;
+package com.example.microservices.core.review;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -23,7 +23,7 @@ import java.util.Date;
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {
 "spring.datasource.url=jdbc:h2:mem:review-db"})
-class ReviewServiceApplicationTests {
+public class ReviewServiceApplicationTests {
 
 	@Autowired
 	private WebTestClient client;

@@ -1,4 +1,4 @@
-package microservices.core.trivia;
+package com.example.microservices.core.trivia;
 
 import org.junit.Test;
 import org.mapstruct.factory.Mappers;

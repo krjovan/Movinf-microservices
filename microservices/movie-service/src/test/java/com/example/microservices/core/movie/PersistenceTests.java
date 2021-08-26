@@ -1,4 +1,4 @@
-package microservices.core.movie;
+package com.example.microservices.core.movie;
 
 import org.junit.Before;
 import org.junit.Test;

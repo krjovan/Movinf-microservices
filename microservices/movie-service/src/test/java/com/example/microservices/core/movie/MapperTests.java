@@ -1,4 +1,4 @@
-package microservices.core.movie;
+package com.example.microservices.core.movie;
 
 import org.junit.Test;
 import org.mapstruct.factory.Mappers;

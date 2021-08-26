@@ -1,4 +1,4 @@
-package microservices.core.review;
+package com.example.microservices.core.review;
 
 import org.junit.Test;
 import org.mapstruct.factory.Mappers;

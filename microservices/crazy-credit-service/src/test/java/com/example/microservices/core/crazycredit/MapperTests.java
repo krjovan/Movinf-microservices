@@ -1,4 +1,4 @@
-package microservices.core.crazycredit;
+package com.example.microservices.core.crazycredit;
 
 import org.junit.Test;
 import org.mapstruct.factory.Mappers;

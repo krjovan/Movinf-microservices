@@ -1,4 +1,4 @@
-package microservices.core.trivia;
+package com.example.microservices.core.trivia;
 
 import org.junit.Before;
 import org.junit.Test;

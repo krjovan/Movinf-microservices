@@ -34,7 +34,7 @@ import static reactor.core.publisher.Mono.just;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT)
-class MovieCompositeServiceApplicationTests {
+public class MovieCompositeServiceApplicationTests {
 
 	private static final int MOVIE_ID_OK = 1;
 	private static final int MOVIE_ID_NOT_FOUND = 2;

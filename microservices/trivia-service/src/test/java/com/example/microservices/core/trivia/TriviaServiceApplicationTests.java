@@ -1,4 +1,4 @@
-package microservices.core.trivia;
+package com.example.microservices.core.trivia;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +21,7 @@ import java.util.Date;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
-class TriviaServiceApplicationTests {
+public class TriviaServiceApplicationTests {
 
 	@Autowired
 	private WebTestClient client;

@@ -1,4 +1,4 @@
-package microservices.core.crazycredit;
+package com.example.microservices.core.crazycredit;
 
 import org.junit.Before;
 import org.junit.Test;
