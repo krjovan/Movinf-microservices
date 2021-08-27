@@ -12,10 +12,8 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import java.util.Date;
 
-import com.example.api.composite.movie.MovieAggregate;
-import com.example.api.composite.movie.TriviaSummary;
-import com.example.api.composite.movie.ReviewSummary;
-import com.example.api.composite.movie.CrazyCreditSummary;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,7 +28,6 @@ import com.example.api.core.trivia.Trivia;
 import com.example.microservices.composite.movie.services.MovieCompositeIntegration;
 import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
-import static reactor.core.publisher.Mono.just;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT)
@@ -50,13 +47,13 @@ public class MovieCompositeServiceApplicationTests {
 	public void setUp() {
 
 		when(compositeIntegration.getMovie(MOVIE_ID_OK)).
-			thenReturn(new Movie(MOVIE_ID_OK, "Test Title", new Date(), "Test country", 0, 0, 0, "mock-address"));
+			thenReturn(Mono.just(new Movie(MOVIE_ID_OK, "Test Title", new Date(), "Test country", 0, 0, 0, "mock-address")));
 		when(compositeIntegration.getTrivia(MOVIE_ID_OK)).
-			thenReturn(singletonList(new Trivia(MOVIE_ID_OK, 1, new Date(), "Test content", false, "mock address")));
+			thenReturn(Flux.fromIterable(singletonList(new Trivia(MOVIE_ID_OK, 1, new Date(), "Test content", false, "mock address"))));
 		when(compositeIntegration.getReviews(MOVIE_ID_OK)).
-			thenReturn(singletonList(new Review(MOVIE_ID_OK, 1, new Date(), "Test title", "Test content", 3, "mock address")));
+			thenReturn(Flux.fromIterable(singletonList(new Review(MOVIE_ID_OK, 1, new Date(), "Test title", "Test content", 3, "mock address"))));
 		when(compositeIntegration.getCrazyCredits(MOVIE_ID_OK)).
-			thenReturn(singletonList(new CrazyCredit(MOVIE_ID_OK, 1, "Test content", false, "mock address")));
+			thenReturn(Flux.fromIterable(singletonList(new CrazyCredit(MOVIE_ID_OK, 1, "Test content", false, "mock address"))));
 		
 		when(compositeIntegration.getMovie(MOVIE_ID_NOT_FOUND)).thenThrow(new NotFoundException("NOT FOUND: " + MOVIE_ID_NOT_FOUND));
 
@@ -65,39 +62,6 @@ public class MovieCompositeServiceApplicationTests {
 
 	@Test
 	public void contextLoads() {
-	}
-	
-	@Test
-	public void createCompositeMovie1() {
-
-		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", new Date(), "Some country", 0, 0, 0, null, null, null, null);
-
-		postAndVerifyMovie(compositeMovie, OK);
-	}
-
-	@Test
-	public void createCompositeMovie2() {
-		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", new Date(), "Some country", 0, 0, 0,
-				singletonList(new TriviaSummary(1, new Date(), "Some content", false)),
-				singletonList(new ReviewSummary(1, new Date(), "Some title", "Some content", 0)), 
-				singletonList(new CrazyCreditSummary(1, "Some content", false)), 
-						null);
-
-		postAndVerifyMovie(compositeMovie, OK);
-	}
-
-	@Test
-	public void deleteCompositeMovie() {
-		MovieAggregate compositeMovie = new MovieAggregate(1, "Some title", new Date(), "Some country", 0, 0, 0,
-				singletonList(new TriviaSummary(1, new Date(), "Some content", false)),
-				singletonList(new ReviewSummary(1, new Date(), "Some title", "Some content", 0)), 
-				singletonList(new CrazyCreditSummary(1, "Some content", false)), 
-						null);
-
-		postAndVerifyMovie(compositeMovie, OK);
-
-		deleteAndVerifyMovie(compositeMovie.getMovieId(), OK);
-		deleteAndVerifyMovie(compositeMovie.getMovieId(), OK);
 	}
 
 	@Test
@@ -132,20 +96,4 @@ public class MovieCompositeServiceApplicationTests {
 			.expectHeader().contentType(APPLICATION_JSON)
 			.expectBody();
 	}
-
-	private void postAndVerifyMovie(MovieAggregate compositeMovie, HttpStatus expectedStatus) {
-		client.post()
-			.uri("/movie-composite")
-			.body(just(compositeMovie), MovieAggregate.class)
-			.exchange()
-			.expectStatus().isEqualTo(expectedStatus);
-	}
-
-	private void deleteAndVerifyMovie(int movieId, HttpStatus expectedStatus) {
-		client.delete()
-			.uri("/movie-composite/" + movieId)
-			.exchange()
-			.expectStatus().isEqualTo(expectedStatus);
-	}
-
 }
