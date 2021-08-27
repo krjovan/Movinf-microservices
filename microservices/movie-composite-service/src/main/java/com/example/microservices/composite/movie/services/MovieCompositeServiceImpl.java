@@ -4,13 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
-
+import reactor.core.publisher.Mono;
 import com.example.api.composite.movie.*;
 import com.example.api.core.crazycredit.CrazyCredit;
 import com.example.api.core.movie.Movie;
 import com.example.api.core.review.Review;
 import com.example.api.core.trivia.Trivia;
-import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.ServiceUtil;
 
 import java.util.Date;
@@ -23,7 +22,7 @@ public class MovieCompositeServiceImpl implements MovieCompositeService {
     private static final Logger LOG = LoggerFactory.getLogger(MovieCompositeServiceImpl.class);
 	
 	private final ServiceUtil serviceUtil;
-    private  MovieCompositeIntegration integration;
+    private final MovieCompositeIntegration integration;
 
     @Autowired
     public MovieCompositeServiceImpl(ServiceUtil serviceUtil, MovieCompositeIntegration integration) {
@@ -63,45 +62,42 @@ public class MovieCompositeServiceImpl implements MovieCompositeService {
                 });
             }
 
-            LOG.debug("createCompositeMovie: composite entites created for movieId: {}", body.getMovieId());
+            LOG.debug("createCompositeMovie: composite entities created for movieId: {}", body.getMovieId());
 
         } catch (RuntimeException re) {
-            LOG.warn("createCompositeMovie failed", re);
+            LOG.warn("createCompositeMovie failed: {}", re.toString());
             throw re;
         }
     }
     
     @Override
-    public MovieAggregate getCompositeMovie(int movieId) {
-        LOG.debug("getCompositeMovie: lookup a movie aggregate for movieId: {}", movieId);
-		Movie movie = integration.getMovie(movieId);
-        if (movie == null) throw new NotFoundException("No movie found for movieId: " + movieId);
-
-        List<Trivia> trivia = integration.getTrivia(movieId);
-
-        List<Review> reviews = integration.getReviews(movieId);
-        
-        List<CrazyCredit> crazyCredits = integration.getCrazyCredits(movieId);
-        
-        LOG.debug("getCompositeMovie: aggregate entity found for movieId: {}", movieId);
-
-        return createMovieAggregate(movie, trivia, reviews, crazyCredits, serviceUtil.getServiceAddress());
-	}
+    public Mono<MovieAggregate> getCompositeMovie(int movieId) {
+        return Mono.zip(
+            values -> createMovieAggregate((Movie) values[0], (List<Trivia>) values[1], (List<Review>) values[2], (List<CrazyCredit>) values[3], serviceUtil.getServiceAddress()),
+            integration.getMovie(movieId),
+            integration.getTrivia(movieId).collectList(),
+            integration.getReviews(movieId).collectList(),
+            integration.getCrazyCredits(movieId).collectList())
+            .doOnError(ex -> LOG.warn("getCompositeMovie failed: {}", ex.toString()))
+            .log();
+    }
     
     @Override
     public void deleteCompositeMovie(int movieId) {
+    	try {
+            LOG.debug("deleteCompositeMovie: Deletes a movie aggregate for movieId: {}", movieId);
 
-        LOG.debug("deleteCompositeMovie: Deletes a movie aggregate for movieId: {}", movieId);
+            integration.deleteMovie(movieId);
+            integration.deleteTrivia(movieId);
+            integration.deleteReviews(movieId);
+            integration.deleteCrazyCredits(movieId);
 
-        integration.deleteMovie(movieId);
+            LOG.debug("deleteCompositeMovie: aggregate entities deleted for movieId: {}", movieId);
 
-        integration.deleteTrivia(movieId);
-
-        integration.deleteReviews(movieId);
-        
-        integration.deleteCrazyCredits(movieId);
-
-        LOG.debug("getCompositeMovie: aggregate entities deleted for movieId: {}", movieId);
+        } catch (RuntimeException re) {
+            LOG.warn("deleteCompositeMovie failed: {}", re.toString());
+            throw re;
+        }
     }
 	
 	private MovieAggregate createMovieAggregate(Movie movie, List<Trivia> trivia, List<Review> reviews, List<CrazyCredit> crazyCredits, String serviceAddress) {

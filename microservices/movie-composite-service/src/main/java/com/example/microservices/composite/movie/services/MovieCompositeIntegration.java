@@ -5,42 +5,73 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.boot.actuate.health.Health;
+import org.springframework.cloud.stream.annotation.EnableBinding;
+import org.springframework.cloud.stream.annotation.Output;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.example.api.core.crazycredit.*;
 import com.example.api.core.movie.*;
 import com.example.api.core.review.*;
 import com.example.api.core.trivia.*;
+import com.example.api.event.Event;
 import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.HttpErrorInfo;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-import static org.springframework.http.HttpMethod.GET;
+import static reactor.core.publisher.Flux.empty;
+import static com.example.api.event.Event.Type.CREATE;
+import static com.example.api.event.Event.Type.DELETE;
 
+@EnableBinding(MovieCompositeIntegration.MessageSources.class)
 @Component
 public class MovieCompositeIntegration implements MovieService, TriviaService, ReviewService, CrazyCreditService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MovieCompositeIntegration.class);
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final ObjectMapper mapper;
 
     private final String movieServiceUrl;
     private final String triviaServiceUrl;
     private final String reviewServiceUrl;
     private final String crazyCreditServiceUrl;
+    
+    private MessageSources messageSources;
+
+    public interface MessageSources {
+
+        String OUTPUT_MOVIES = "output-movies";
+        String OUTPUT_TRIVIA = "output-trivia";
+        String OUTPUT_REVIEWS = "output-reviews";
+        String OUTPUT_CRAZYCREDITS = "output-crazycredits";
+
+        @Output(OUTPUT_MOVIES)
+        MessageChannel outputMovies();
+
+        @Output(OUTPUT_TRIVIA)
+        MessageChannel outputTrivia();
+
+        @Output(OUTPUT_REVIEWS)
+        MessageChannel outputReviews();
+        
+        @Output(OUTPUT_CRAZYCREDITS)
+        MessageChannel outputCrazyCredits();
+    }
 
     @Autowired
     public MovieCompositeIntegration(
-        RestTemplate restTemplate,
+    	WebClient.Builder webClient,
         ObjectMapper mapper,
+        MessageSources messageSources,
 
         @Value("${app.movie-service.host}") String movieServiceHost,
         @Value("${app.movie-service.port}") int    movieServicePort,
@@ -55,220 +86,135 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
         @Value("${app.crazy-credit-service.port}") int    crazyCreditServicePort
     ) {
 
-        this.restTemplate = restTemplate;
+    	this.webClient = webClient.build();
         this.mapper = mapper;
+        this.messageSources = messageSources;
 
-        movieServiceUrl        = "http://" + movieServiceHost + ":" + movieServicePort + "/movie";
-        triviaServiceUrl = "http://" + triviaServiceHost + ":" + triviaServicePort + "/trivia";
-        reviewServiceUrl         = "http://" + reviewServiceHost + ":" + reviewServicePort + "/review";
-        crazyCreditServiceUrl    = "http://" + crazyCreditServiceHost + ":" + crazyCreditServicePort + "/crazy-credit";
+        movieServiceUrl        = "http://" + movieServiceHost + ":" + movieServicePort;
+        triviaServiceUrl = "http://" + triviaServiceHost + ":" + triviaServicePort;
+        reviewServiceUrl         = "http://" + reviewServiceHost + ":" + reviewServicePort;
+        crazyCreditServiceUrl    = "http://" + crazyCreditServiceHost + ":" + crazyCreditServicePort;
     }
     
     @Override
     public Movie createMovie(Movie body) {
-
-        try {
-            String url = movieServiceUrl;
-            LOG.debug("Will post a new movie to URL: {}", url);
-
-            Movie movie = restTemplate.postForObject(url, body, Movie.class);
-            LOG.debug("Created a movie with id: {}", movie.getMovieId());
-
-            return movie;
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputMovies().send(MessageBuilder.withPayload(new Event(CREATE, body.getMovieId(), body)).build());
+        return body;
     }
 
     @Override
-    public Movie getMovie(int movieId) {
-
-        try {
-            String url = movieServiceUrl + "/" + movieId;
-            LOG.debug("Will call the getMovie API on URL: {}", url);
-
-            Movie movie = restTemplate.getForObject(url, Movie.class);
-            LOG.debug("Found a movie with id: {}", movie.getMovieId());
-
-            return movie;
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    public Mono<Movie> getMovie(int movieId) {
+    	String url = movieServiceUrl + "/movie/" + movieId;
+        LOG.debug("Will call the getMovie API on URL: {}", url);
+        return webClient.get().uri(url).retrieve().bodyToMono(Movie.class).log().onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
     }
     
     @Override
     public void deleteMovie(int movieId) {
-        try {
-            String url = movieServiceUrl + "/" + movieId;
-            LOG.debug("Will call the deleteMovie API on URL: {}", url);
-            restTemplate.delete(url);
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputMovies().send(MessageBuilder.withPayload(new Event(DELETE, movieId, null)).build());
     }
     
     @Override
     public Trivia createTrivia(Trivia body) {
-        try {
-        	String url = triviaServiceUrl;
-            LOG.debug("Will post a new trivia to URL: {}", url);
-
-            Trivia trivia = restTemplate.postForObject(url, body, Trivia.class);
-            LOG.debug("Created a trivia with id: {}", trivia.getTriviaId());
-
-            return trivia;
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputTrivia().send(MessageBuilder.withPayload(new Event(CREATE, body.getMovieId(), body)).build());
+        return body;
     }
     
     @Override
-    public List<Trivia> getTrivia(int movieId) {
-
-        try {
-            String url = triviaServiceUrl + "?movieId=" + movieId;
-
-            LOG.debug("Will call the getTrivia API on URL: {}", url);
-            List<Trivia> trivia = restTemplate.exchange(url, GET, null, new ParameterizedTypeReference<List<Trivia>>() {}).getBody();
-
-            LOG.debug("Found {} trivia for movie with id: {}", trivia.size(), movieId);
-            return trivia;
-
-        } catch (Exception ex) {
-            LOG.warn("Got an exception while requesting trivia, return zero trivia: {}", ex.getMessage());
-            return new ArrayList<>();
-        }
+    public Flux<Trivia> getTrivia(int movieId) {
+    	String url = triviaServiceUrl + "/trivia?movieId=" + movieId;
+    	LOG.debug("Will call the getTrivia API on URL: {}", url);
+    	// Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
+        return webClient.get().uri(url).retrieve().bodyToFlux(Trivia.class).log().onErrorResume(error -> empty());
     }
     
     @Override
     public void deleteTrivia(int movieId) {
-        try {
-            String url = triviaServiceUrl + "?movieId=" + movieId;
-            LOG.debug("Will call the deleteTrivia API on URL: {}", url);
-
-            restTemplate.delete(url);
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputTrivia().send(MessageBuilder.withPayload(new Event(DELETE, movieId, null)).build());
     }
     
     @Override
     public Review createReview(Review body) {
-
-        try {
-            String url = reviewServiceUrl;
-            LOG.debug("Will post a new review to URL: {}", url);
-
-            Review review = restTemplate.postForObject(url, body, Review.class);
-            LOG.debug("Created a review with id: {}", review.getMovieId());
-
-            return review;
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputReviews().send(MessageBuilder.withPayload(new Event(CREATE, body.getMovieId(), body)).build());
+        return body;
     }
 
     @Override
-    public List<Review> getReviews(int movieId) {
-
-        try {
-            String url = reviewServiceUrl + "?movieId=" + movieId;
-
-            LOG.debug("Will call the getReviews API on URL: {}", url);
-            List<Review> reviews = restTemplate.exchange(url, GET, null, new ParameterizedTypeReference<List<Review>>() {}).getBody();
-
-            LOG.debug("Found {} reviews for movie with id: {}", reviews.size(), movieId);
-            return reviews;
-
-        } catch (Exception ex) {
-            LOG.warn("Got an exception while requesting reviews, return zero reviews: {}", ex.getMessage());
-            return new ArrayList<>();
-        }
+    public Flux<Review> getReviews(int movieId) {
+    	String url = reviewServiceUrl + "/review?movieId=" + movieId;
+    	LOG.debug("Will call the getReviews API on URL: {}", url);
+        // Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
+        return webClient.get().uri(url).retrieve().bodyToFlux(Review.class).log().onErrorResume(error -> empty());
     }
     
     @Override
     public void deleteReviews(int movieId) {
-        try {
-            String url = reviewServiceUrl + "?movieId=" + movieId;
-            LOG.debug("Will call the deleteReviews API on URL: {}", url);
-
-            restTemplate.delete(url);
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputReviews().send(MessageBuilder.withPayload(new Event(DELETE, movieId, null)).build());
     }
     
     @Override
     public CrazyCredit createCrazyCredit(CrazyCredit body) {
-
-        try {
-            String url = crazyCreditServiceUrl;
-            LOG.debug("Will post a new crazy credit to URL: {}", url);
-
-            CrazyCredit crazyCredit = restTemplate.postForObject(url, body, CrazyCredit.class);
-            LOG.debug("Created a crazy credit with id: {}", crazyCredit.getMovieId());
-
-            return crazyCredit;
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputCrazyCredits().send(MessageBuilder.withPayload(new Event(CREATE, body.getMovieId(), body)).build());
+        return body;
     }
 
     @Override
-	public List<CrazyCredit> getCrazyCredits(int movieId) {
-		
-		try {
-            String url = crazyCreditServiceUrl + "?movieId=" + movieId;
-
-            LOG.debug("Will call the getCrazyCredits API on URL: {}", url);
-            List<CrazyCredit> crazyCredits = restTemplate.exchange(url, GET, null, new ParameterizedTypeReference<List<CrazyCredit>>() {}).getBody();
-
-            LOG.debug("Found {} crazy credits for movie with id: {}", crazyCredits.size(), movieId);
-            return crazyCredits;
-
-        } catch (Exception ex) {
-            LOG.warn("Got an exception while requesting crazy credits, return zero crazy credits: {}", ex.getMessage());
-            return new ArrayList<>();
-        }
+	public Flux<CrazyCredit> getCrazyCredits(int movieId) {
+    	String url = crazyCreditServiceUrl + "/crazy-credit?movieId=" + movieId;
+    	LOG.debug("Will call the getCrazyCredits API on URL: {}", url);
+    	// Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
+        return webClient.get().uri(url).retrieve().bodyToFlux(CrazyCredit.class).log().onErrorResume(error -> empty());
 	}
     
     @Override
     public void deleteCrazyCredits(int movieId) {
-        try {
-            String url = crazyCreditServiceUrl + "?movieId=" + movieId;
-            LOG.debug("Will call the deleteCrazyCredits API on URL: {}", url);
-
-            restTemplate.delete(url);
-
-        } catch (HttpClientErrorException ex) {
-            throw handleHttpClientException(ex);
-        }
+    	messageSources.outputCrazyCredits().send(MessageBuilder.withPayload(new Event(DELETE, movieId, null)).build());
     }
     
-    private RuntimeException handleHttpClientException(HttpClientErrorException ex) {
-        switch (ex.getStatusCode()) {
-
+    public Mono<Health> getMovieHealth() {
+        return getHealth(movieServiceUrl);
+    }
+    
+    public Mono<Health> getTriviaHealth() {
+        return getHealth(triviaServiceUrl);
+    }
+    
+    public Mono<Health> getReviewHealth() {
+        return getHealth(reviewServiceUrl);
+    }
+    
+    public Mono<Health> getCrazyCreditHealth() {
+        return getHealth(crazyCreditServiceUrl);
+    }
+    
+    private Mono<Health> getHealth(String url) {
+        url += "/actuator/health";
+        LOG.debug("Will call the Health API on URL: {}", url);
+        return webClient.get().uri(url).retrieve().bodyToMono(String.class)
+            .map(s -> new Health.Builder().up().build())
+            .onErrorResume(ex -> Mono.just(new Health.Builder().down(ex).build()))
+            .log();
+    }
+    
+    private Throwable handleException(Throwable ex) {
+        if (!(ex instanceof WebClientResponseException)) {
+            LOG.warn("Got a unexpected error: {}, will rethrow it", ex.toString());
+            return ex;
+        }
+        WebClientResponseException wcre = (WebClientResponseException)ex;
+        switch (wcre.getStatusCode()) {
         case NOT_FOUND:
-            return new NotFoundException(getErrorMessage(ex));
-
+            return new NotFoundException(getErrorMessage(wcre));
         case UNPROCESSABLE_ENTITY :
-            return new InvalidInputException(getErrorMessage(ex));
-
+            return new InvalidInputException(getErrorMessage(wcre));
         default:
-            LOG.warn("Got a unexpected HTTP error: {}, will rethrow it", ex.getStatusCode());
-            LOG.warn("Error body: {}", ex.getResponseBodyAsString());
+            LOG.warn("Got a unexpected HTTP error: {}, will rethrow it", wcre.getStatusCode());
+            LOG.warn("Error body: {}", wcre.getResponseBodyAsString());
             return ex;
         }
     }
 
-    private String getErrorMessage(HttpClientErrorException ex) {
+    private String getErrorMessage(WebClientResponseException ex) {
         try {
             return mapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
         } catch (IOException ioex) {
