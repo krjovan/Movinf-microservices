@@ -7,6 +7,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
+import reactor.core.publisher.Mono;
+
 
 @Api(description = "REST API for composite movie information.")
 public interface MovieCompositeService {
@@ -50,7 +52,7 @@ public interface MovieCompositeService {
     @GetMapping(
         value    = "/movie-composite/{movieId}",
         produces = "application/json")
-	MovieAggregate getCompositeMovie(@PathVariable int movieId);
+	Mono<MovieAggregate> getCompositeMovie(@PathVariable int movieId);
 
 
     /**
