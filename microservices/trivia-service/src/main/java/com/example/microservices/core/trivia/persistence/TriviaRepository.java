@@ -1,9 +1,8 @@
 package com.example.microservices.core.trivia.persistence;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
 
-import java.util.List;
-
-public interface TriviaRepository extends CrudRepository<TriviaEntity, String> {
-    List<TriviaEntity> findByMovieId(int movieId);
+public interface TriviaRepository extends ReactiveCrudRepository<TriviaEntity, String> {
+    Flux<TriviaEntity> findByMovieId(int movieId);
 }

@@ -7,6 +7,8 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import static java.lang.String.format;
+
 @Document(collection="trivia")
 @CompoundIndex(name = "mov-tri-id", unique = true, def = "{'movieId': 1, 'triviaId' : 1}")
 public class TriviaEntity {
@@ -38,6 +40,11 @@ public class TriviaEntity {
         this.publishDate = publishDate;
         this.content = content;
         this.spoiler = spoiler;
+    }
+    
+    @Override
+    public String toString() {
+        return format("TriviaEntity: %s/%d", movieId, triviaId);
     }
 
     public String getId() {

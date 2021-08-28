@@ -27,10 +27,10 @@ public class PersistenceTests {
 
     @Before
    	public void setupDb() {
-   		repository.deleteAll();
+   		repository.deleteAll().block();
 
         TriviaEntity entity = new TriviaEntity(1, 2, new Date(), "Some contet", false);
-        savedEntity = repository.save(entity);
+        savedEntity = repository.save(entity).block();
 
         assertEqualsTrivia(entity, savedEntity);
     }
@@ -40,33 +40,33 @@ public class PersistenceTests {
    	public void create() {
 
     	TriviaEntity newEntity = new TriviaEntity(1, 3, new Date(), "Some contet", false);
-        repository.save(newEntity);
+        repository.save(newEntity).block();
 
-        TriviaEntity foundEntity = repository.findById(newEntity.getId()).get();
+        TriviaEntity foundEntity = repository.findById(newEntity.getId()).block();
         assertEqualsTrivia(newEntity, foundEntity);
 
-        assertEquals(2, repository.count());
+        assertEquals(2, (long) repository.count().block());
     }
 
     @Test
    	public void update() {
         savedEntity.setContent("a2");
-        repository.save(savedEntity);
+        repository.save(savedEntity).block();
 
-        TriviaEntity foundEntity = repository.findById(savedEntity.getId()).get();
+        TriviaEntity foundEntity = repository.findById(savedEntity.getId()).block();
         assertEquals(1, (long)foundEntity.getVersion());
         assertEquals("a2", foundEntity.getContent());
     }
 
     @Test
    	public void delete() {
-        repository.delete(savedEntity);
-        assertFalse(repository.existsById(savedEntity.getId()));
+        repository.delete(savedEntity).block();
+        assertFalse(repository.existsById(savedEntity.getId()).block());
     }
 
     @Test
    	public void getByMovieId() {
-        List<TriviaEntity> entityList = repository.findByMovieId(savedEntity.getMovieId());
+        List<TriviaEntity> entityList = repository.findByMovieId(savedEntity.getMovieId()).collectList().block();
 
         assertThat(entityList, hasSize(1));
         assertEqualsTrivia(savedEntity, entityList.get(0));
@@ -75,31 +75,31 @@ public class PersistenceTests {
     @Test(expected = DuplicateKeyException.class)
    	public void duplicateError() {
     	TriviaEntity entity = new TriviaEntity(1, 2, new Date(), "Some content", false);
-        repository.save(entity);
+        repository.save(entity).block();
     }
 
     @Test
    	public void optimisticLockError() {
 
         // Store the saved entity in two separate entity objects
-    	TriviaEntity entity1 = repository.findById(savedEntity.getId()).get();
-    	TriviaEntity entity2 = repository.findById(savedEntity.getId()).get();
+    	TriviaEntity entity1 = repository.findById(savedEntity.getId()).block();
+    	TriviaEntity entity2 = repository.findById(savedEntity.getId()).block();
 
         // Update the entity using the first entity object
         entity1.setContent("a1");
-        repository.save(entity1);
+        repository.save(entity1).block();
 
         //  Update the entity using the second entity object.
         // This should fail since the second entity now holds a old version number, i.e. a Optimistic Lock Error
         try {
             entity2.setContent("a2");
-            repository.save(entity2);
+            repository.save(entity2).block();
 
             fail("Expected an OptimisticLockingFailureException");
         } catch (OptimisticLockingFailureException e) {}
 
         // Get the updated entity from the database and verify its new sate
-        TriviaEntity updatedEntity = repository.findById(savedEntity.getId()).get();
+        TriviaEntity updatedEntity = repository.findById(savedEntity.getId()).block();
         assertEquals(1, (int)updatedEntity.getVersion());
         assertEquals("a1", updatedEntity.getContent());
     }

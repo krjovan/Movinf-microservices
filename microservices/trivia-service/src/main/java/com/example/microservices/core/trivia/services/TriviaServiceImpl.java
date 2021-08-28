@@ -7,12 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 import com.example.microservices.core.trivia.persistence.TriviaEntity;
 import com.example.microservices.core.trivia.persistence.TriviaRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.example.api.core.trivia.*;
 import com.example.util.exceptions.InvalidInputException;
 import com.example.util.http.ServiceUtil;
-
-import java.util.List;
 
 @RestController
 public class TriviaServiceImpl implements TriviaService {
@@ -34,32 +34,32 @@ public class TriviaServiceImpl implements TriviaService {
 
     @Override
     public Trivia createTrivia(Trivia body) {
-        try {
-            TriviaEntity entity = mapper.apiToEntity(body);
-            TriviaEntity newEntity = repository.save(entity);
-            LOG.debug("createTrivia: created a trivia entity: {}/{}", body.getMovieId(), body.getTriviaId());
-            return mapper.entityToApi(newEntity);
-        } catch (DuplicateKeyException dke) {
-            throw new InvalidInputException("Duplicate key, Movie Id: " + body.getMovieId() + ", Trivia Id:" + body.getTriviaId());
-        }
+    	if (body.getMovieId() < 1) throw new InvalidInputException("Invalid movieId: " + body.getMovieId());
+
+        TriviaEntity entity = mapper.apiToEntity(body);
+        Mono<Trivia> newEntity = repository.save(entity)
+            .log()
+            .onErrorMap(
+                DuplicateKeyException.class,
+                ex -> new InvalidInputException("Duplicate key, Movie Id: " + body.getMovieId() + ", Trivia Id:" + body.getTriviaId()))
+            .map(e -> mapper.entityToApi(e));
+        return newEntity.block();
     }
     
     @Override
-    public List<Trivia> getTrivia(int movieId) {
+    public Flux<Trivia> getTrivia(int movieId) {
     	if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
     	
-        List<TriviaEntity> entityList = repository.findByMovieId(movieId);
-        List<Trivia> list = mapper.entityListToApiList(entityList);
-        list.forEach(e -> e.setServiceAddress(serviceUtil.getServiceAddress()));
-
-        LOG.debug("getTrivia: response size: {}", list.size());
-
-        return list;
+    	return repository.findByMovieId(movieId)
+                .log()
+                .map(e -> mapper.entityToApi(e))
+                .map(e -> {e.setServiceAddress(serviceUtil.getServiceAddress()); return e;});
     }
     
     @Override
     public void deleteTrivia(int movieId) {
+    	if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
         LOG.debug("deleteTrivia: tries to delete trivia for the movie with movieId: {}", movieId);
-        repository.deleteAll(repository.findByMovieId(movieId));
+        repository.deleteAll(repository.findByMovieId(movieId)).block();
     }
 }
