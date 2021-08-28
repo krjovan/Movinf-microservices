@@ -5,20 +5,26 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.integration.channel.AbstractMessageChannel;
+import org.springframework.messaging.MessagingException;
+import org.springframework.messaging.support.GenericMessage;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.stream.messaging.Sink;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import com.example.api.core.movie.Movie;
+import com.example.api.event.Event;
 import com.example.microservices.core.movie.persistence.MovieRepository;
+import com.example.util.exceptions.InvalidInputException;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.*;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static reactor.core.publisher.Mono.just;
+import static com.example.api.event.Event.Type.CREATE;
+import static com.example.api.event.Event.Type.DELETE;
 
 import java.util.Date;
 
@@ -31,17 +37,27 @@ public class MovieServiceApplicationTests {
 	
 	@Autowired
 	private MovieRepository repository;
+	
+	@Autowired
+	private Sink channels;
+
+	private AbstractMessageChannel input = null;
 
 	@Before
 	public void setupDb() {
-		repository.deleteAll();
+		input = (AbstractMessageChannel) channels.input();
+		repository.deleteAll().block();
 	}
 
 	@Test
 	public void getMovieById() {
 		int movieId = 1;
-		postAndVerifyMovie(movieId, OK);
-		assertTrue(repository.findByMovieId(movieId).isPresent());
+		assertNull(repository.findByMovieId(movieId).block());
+		assertEquals(0, (long)repository.count().block());
+		sendCreateMovieEvent(movieId);
+
+		assertNotNull(repository.findByMovieId(movieId).block());
+		assertEquals(1, (long)repository.count().block());
 		getAndVerifyMovie(movieId, OK)
         .jsonPath("$.movieId").isEqualTo(movieId);
 	}
@@ -49,21 +65,31 @@ public class MovieServiceApplicationTests {
 	@Test
 	public void duplicateError() {
 		int movieId = 1;
-		postAndVerifyMovie(movieId, OK);
-		assertTrue(repository.findByMovieId(movieId).isPresent());
-		postAndVerifyMovie(movieId, UNPROCESSABLE_ENTITY)
-			.jsonPath("$.path").isEqualTo("/movie")
-			.jsonPath("$.message").isEqualTo("Duplicate key, Movie Id: " + movieId);
+		assertNull(repository.findByMovieId(movieId).block());
+
+		sendCreateMovieEvent(movieId);
+		assertNotNull(repository.findByMovieId(movieId).block());
+		try {
+			sendCreateMovieEvent(movieId);
+			fail("Expected a MessagingException here!");
+		} catch (MessagingException me) {
+			if (me.getCause() instanceof InvalidInputException)	{
+				InvalidInputException iie = (InvalidInputException)me.getCause();
+				assertEquals("Duplicate key, Movie Id: " + movieId, iie.getMessage());
+			} else {
+				fail("Expected a InvalidInputException as the root cause!");
+			}
+		}
 	}
 
 	@Test
 	public void deleteMovie() {
 		int movieId = 1;
-		postAndVerifyMovie(movieId, OK);
-		assertTrue(repository.findByMovieId(movieId).isPresent());
-		deleteAndVerifyMovie(movieId, OK);
-		assertFalse(repository.findByMovieId(movieId).isPresent());
-		deleteAndVerifyMovie(movieId, OK);
+		sendCreateMovieEvent(movieId);
+		assertNotNull(repository.findByMovieId(movieId).block());
+		sendDeleteMovieEvent(movieId);
+		assertNull(repository.findByMovieId(movieId).block());
+		sendDeleteMovieEvent(movieId);
 	}
 
 	@Test
@@ -103,24 +129,14 @@ public class MovieServiceApplicationTests {
 			.expectBody();
 	}
 
-	private WebTestClient.BodyContentSpec postAndVerifyMovie(int movieId, HttpStatus expectedStatus) {
+	private void sendCreateMovieEvent(int movieId) {
 		Movie movie = new Movie(movieId, "n", new Date(),"s", 0, 0, 0, "SA");
-		return client.post()
-			.uri("/movie")
-			.body(just(movie), Movie.class)
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isEqualTo(expectedStatus)
-			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody();
+		Event<Integer, Movie> event = new Event(CREATE, movieId, movie);
+		input.send(new GenericMessage<>(event));
 	}
 
-	private WebTestClient.BodyContentSpec deleteAndVerifyMovie(int movieId, HttpStatus expectedStatus) {
-		return client.delete()
-			.uri("/movie/" + movieId)
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isEqualTo(expectedStatus)
-			.expectBody();
+	private void sendDeleteMovieEvent(int movieId) {
+		Event<Integer, Movie> event = new Event(DELETE, movieId, null);
+		input.send(new GenericMessage<>(event));
 	}
 }

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 
 import com.example.api.core.movie.*;
 import com.example.util.exceptions.InvalidInputException;
@@ -13,6 +14,8 @@ import com.example.util.http.ServiceUtil;
 
 import com.example.microservices.core.movie.persistence.MovieEntity;
 import com.example.microservices.core.movie.persistence.MovieRepository;
+
+import static reactor.core.publisher.Mono.error;
 
 @RestController
 public class MovieServiceImpl implements MovieService {
@@ -34,37 +37,33 @@ public class MovieServiceImpl implements MovieService {
     
     @Override
     public Movie createMovie(Movie body) {
-        try {
-            MovieEntity entity = mapper.apiToEntity(body);
-            MovieEntity newEntity = repository.save(entity);
+    	if (body.getMovieId() < 1) throw new InvalidInputException("Invalid movieId: " + body.getMovieId());
 
-            LOG.debug("createMovie: entity created for movieId: {}", body.getMovieId());
-            return mapper.entityToApi(newEntity);
-
-        } catch (DuplicateKeyException dke) {
-            throw new InvalidInputException("Duplicate key, Movie Id: " + body.getMovieId());
-        }
+        MovieEntity entity = mapper.apiToEntity(body);
+        Mono<Movie> newEntity = repository.save(entity)
+            .log()
+            .onErrorMap(
+                DuplicateKeyException.class,
+                ex -> new InvalidInputException("Duplicate key, Movie Id: " + body.getMovieId()))
+            .map(e -> mapper.entityToApi(e));
+        return newEntity.block();
     }
 
     @Override
-    public Movie getMovie(int movieId) {
-
+    public Mono<Movie> getMovie(int movieId) {
         if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
 
-        MovieEntity entity = repository.findByMovieId(movieId)
-                .orElseThrow(() -> new NotFoundException("No movie found for movieId: " + movieId));
-
-        Movie response = mapper.entityToApi(entity);
-        response.setServiceAddress(serviceUtil.getServiceAddress());
-
-        LOG.debug("getMovie: found movieId: {}", response.getMovieId());
-        
-        return response;
+        return repository.findByMovieId(movieId)
+                .switchIfEmpty(error(new NotFoundException("No movie found for movieId: " + movieId)))
+                .log()
+                .map(e -> mapper.entityToApi(e))
+                .map(e -> {e.setServiceAddress(serviceUtil.getServiceAddress()); return e;});
     }
     
     @Override
     public void deleteMovie(int movieId) {
+    	if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
         LOG.debug("deleteMovie: tries to delete an entity with movieId: {}", movieId);
-        repository.findByMovieId(movieId).ifPresent(e -> repository.delete(e));
+        repository.findByMovieId(movieId).log().map(e -> repository.delete(e)).flatMap(e -> e).block();
     }
 }

@@ -7,6 +7,8 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import static java.lang.String.format;
+
 @Document(collection="movies")
 public class MovieEntity {
 
@@ -45,6 +47,11 @@ public class MovieEntity {
     	this.budget = budget;
     	this.gross = gross;
     	this.runtime = runtime;
+    }
+    
+    @Override
+    public String toString() {
+        return format("MovieEntity: %s", movieId);
     }
 
     public String getId() {

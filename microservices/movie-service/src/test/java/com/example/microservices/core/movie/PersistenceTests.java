@@ -7,21 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import reactor.test.StepVerifier;
 import org.springframework.test.context.junit4.SpringRunner;
 import com.example.microservices.core.movie.persistence.MovieEntity;
 import com.example.microservices.core.movie.persistence.MovieRepository;
 
 import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static java.util.stream.IntStream.rangeClosed;
-import static org.junit.Assert.*;
-import static org.springframework.data.domain.Sort.Direction.ASC;
 
 @RunWith(SpringRunner.class)
 @DataMongoTest
@@ -34,112 +25,96 @@ public class PersistenceTests {
 
     @Before
    	public void setupDb() {
-   		repository.deleteAll();
+    	StepVerifier.create(repository.deleteAll()).verifyComplete();
 
    		MovieEntity entity = new MovieEntity(1, "n", new Date(),"s", 0, 0, 0);
-        savedEntity = repository.save(entity);
-
-        assertEqualsMovie(entity, savedEntity);
+		StepVerifier.create(repository.save(entity))
+			.expectNextMatches(createdEntity -> {
+				savedEntity = createdEntity;
+				return areMovieEqual(entity, savedEntity);
+			})
+			.verifyComplete();
     }
 
 
     @Test
    	public void create() {
         MovieEntity newEntity = new MovieEntity(2, "n", new Date(),"s", 0, 0, 0);
-        repository.save(newEntity);
+        StepVerifier.create(repository.save(newEntity))
+        .expectNextMatches(createdEntity -> newEntity.getMovieId() == createdEntity.getMovieId())
+        .verifyComplete();
+        StepVerifier.create(repository.findById(newEntity.getId()))
+        .expectNextMatches(foundEntity -> areMovieEqual(newEntity, foundEntity))
+        .verifyComplete();
 
-        MovieEntity foundEntity = repository.findById(newEntity.getId()).get();
-        assertEqualsMovie(newEntity, foundEntity);
-
-        assertEquals(2, repository.count());
+        StepVerifier.create(repository.count()).expectNext(2l).verifyComplete();
     }
 
     @Test
    	public void update() {
         savedEntity.setTitle("n2");
-        repository.save(savedEntity);
+        StepVerifier.create(repository.save(savedEntity))
+	        .expectNextMatches(updatedEntity -> updatedEntity.getTitle().equals("n2"))
+	        .verifyComplete();
 
-        MovieEntity foundEntity = repository.findById(savedEntity.getId()).get();
-        assertEquals(1, (long)foundEntity.getVersion());
-        assertEquals("n2", foundEntity.getTitle());
+		StepVerifier.create(repository.findById(savedEntity.getId()))
+		    .expectNextMatches(foundEntity ->
+		        foundEntity.getVersion() == 1 &&
+		        foundEntity.getTitle().equals("n2"))
+		    .verifyComplete();
     }
 
     @Test
    	public void delete() {
-        repository.delete(savedEntity);
-        assertFalse(repository.existsById(savedEntity.getId()));
+    	StepVerifier.create(repository.delete(savedEntity)).verifyComplete();
+        StepVerifier.create(repository.existsById(savedEntity.getId())).expectNext(false).verifyComplete();
     }
 
     @Test
    	public void getByMovieId() {
-        Optional<MovieEntity> entity = repository.findByMovieId(savedEntity.getMovieId());
-
-        assertTrue(entity.isPresent());
-        assertEqualsMovie(savedEntity, entity.get());
+    	StepVerifier.create(repository.findByMovieId(savedEntity.getMovieId()))
+	        .expectNextMatches(foundEntity -> areMovieEqual(savedEntity, foundEntity))
+	        .verifyComplete();
     }
 
-    @Test(expected = DuplicateKeyException.class)
+    @Test
    	public void duplicateError() {
     	MovieEntity entity = new MovieEntity(savedEntity.getMovieId(),"n", new Date(),"s", 0, 0, 0);
-        repository.save(entity);
+    	StepVerifier.create(repository.save(entity)).expectError(DuplicateKeyException.class).verify();
     }
 
     @Test
    	public void optimisticLockError() {
         // Store the saved entity in two separate entity objects
-    	MovieEntity entity1 = repository.findById(savedEntity.getId()).get();
-    	MovieEntity entity2 = repository.findById(savedEntity.getId()).get();
+    	MovieEntity entity1 = repository.findById(savedEntity.getId()).block();
+    	MovieEntity entity2 = repository.findById(savedEntity.getId()).block();
 
         // Update the entity using the first entity object
         entity1.setTitle("n1");
-        repository.save(entity1);
+        repository.save(entity1).block();
 
         //  Update the entity using the second entity object.
         // This should fail since the second entity now holds a old version number, i.e. a Optimistic Lock Error
-        try {
-            entity2.setTitle("n2");
-            repository.save(entity2);
-
-            fail("Expected an OptimisticLockingFailureException");
-        } catch (OptimisticLockingFailureException e) {}
+        StepVerifier.create(repository.save(entity2)).expectError(OptimisticLockingFailureException.class).verify();
 
         // Get the updated entity from the database and verify its new sate
-        MovieEntity updatedEntity = repository.findById(savedEntity.getId()).get();
-        assertEquals(1, (int)updatedEntity.getVersion());
-        assertEquals("n1", updatedEntity.getTitle());
+        StepVerifier.create(repository.findById(savedEntity.getId()))
+	        .expectNextMatches(foundEntity ->
+	            foundEntity.getVersion() == 1 &&
+	            foundEntity.getTitle().equals("n1"))
+	        .verifyComplete();
     }
 
-    @Test
-    public void paging() {
-        repository.deleteAll();
-
-        List<MovieEntity> newMovies = rangeClosed(1001, 1010)
-            .mapToObj(i -> new MovieEntity(i, "name " + i, new Date(),"s", 0, 0, 0))
-            .collect(Collectors.toList());
-        repository.saveAll(newMovies);
-
-        Pageable nextPage = PageRequest.of(0, 4, ASC, "movieId");
-        nextPage = testNextPage(nextPage, "[1001, 1002, 1003, 1004]", true);
-        nextPage = testNextPage(nextPage, "[1005, 1006, 1007, 1008]", true);
-        nextPage = testNextPage(nextPage, "[1009, 1010]", false);
-    }
-
-    private Pageable testNextPage(Pageable nextPage, String expectedMovieIds, boolean expectsNextPage) {
-        Page<MovieEntity> moviePage = repository.findAll(nextPage);
-        assertEquals(expectedMovieIds, moviePage.getContent().stream().map(p -> p.getMovieId()).collect(Collectors.toList()).toString());
-        assertEquals(expectsNextPage, moviePage.hasNext());
-        return moviePage.nextPageable();
-    }
-
-    private void assertEqualsMovie(MovieEntity expectedEntity, MovieEntity actualEntity) {
-        assertEquals(expectedEntity.getId(), actualEntity.getId());
-        assertEquals(expectedEntity.getVersion(), actualEntity.getVersion());
-        assertEquals(expectedEntity.getMovieId(), actualEntity.getMovieId());
-        assertEquals(expectedEntity.getTitle(), actualEntity.getTitle());
-        assertEquals(expectedEntity.getReleaseDate(), actualEntity.getReleaseDate());
-        assertEquals(expectedEntity.getCountry(), actualEntity.getCountry());
-        assertEquals(expectedEntity.getBudget(), actualEntity.getBudget());
-        assertEquals(expectedEntity.getGross(), actualEntity.getGross());
-        assertEquals(expectedEntity.getRuntime(), actualEntity.getRuntime());
+    private boolean areMovieEqual(MovieEntity expectedEntity, MovieEntity actualEntity) {
+        return
+            (expectedEntity.getId().equals(actualEntity.getId())) &&
+            (expectedEntity.getVersion() == actualEntity.getVersion()) &&
+            (expectedEntity.getMovieId() == actualEntity.getMovieId()) &&
+            (expectedEntity.getTitle().equals(actualEntity.getTitle())) &&
+            (expectedEntity.getReleaseDate().equals(actualEntity.getReleaseDate())) &&
+            (expectedEntity.getCountry().equals(actualEntity.getCountry())) &&
+            (expectedEntity.getBudget() == actualEntity.getBudget()) &&
+            (expectedEntity.getGross() == actualEntity.getGross()) &&
+            (expectedEntity.getRuntime() == actualEntity.getRuntime());
     }
 }
