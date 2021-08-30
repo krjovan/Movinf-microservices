@@ -7,12 +7,12 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.RestController;
 import com.example.microservices.core.crazycredit.persistence.CrazyCreditEntity;
 import com.example.microservices.core.crazycredit.persistence.CrazyCreditRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.example.api.core.crazycredit.*;
 import com.example.util.exceptions.*;
 import com.example.util.http.*;
-
-import java.util.List;
 
 @RestController
 public class CrazyCreditServiceImpl implements CrazyCreditService {
@@ -34,35 +34,32 @@ public class CrazyCreditServiceImpl implements CrazyCreditService {
 
     @Override
     public CrazyCredit createCrazyCredit(CrazyCredit body) {
-        try {
-        	CrazyCreditEntity entity = mapper.apiToEntity(body);
-        	CrazyCreditEntity newEntity = repository.save(entity);
+    	if (body.getMovieId() < 1) throw new InvalidInputException("Invalid movieId: " + body.getMovieId());
 
-            LOG.debug("createCrazyCredit: created a crazy credit entity: {}/{}", body.getMovieId(), body.getCrazyCreditId());
-            return mapper.entityToApi(newEntity);
-
-        } catch (DuplicateKeyException dke) {
-            throw new InvalidInputException("Duplicate key, Movie Id: " + body.getMovieId() + ", CrazyCredit Id:" + body.getCrazyCreditId());
-        }
+        CrazyCreditEntity entity = mapper.apiToEntity(body);
+        Mono<CrazyCredit> newEntity = repository.save(entity)
+            .log()
+            .onErrorMap(
+                DuplicateKeyException.class,
+                ex -> new InvalidInputException("Duplicate key, Movie Id: " + body.getMovieId() + ", Crazy credit Id:" + body.getCrazyCreditId()))
+            .map(e -> mapper.entityToApi(e));
+        return newEntity.block();
     }
 
     @Override
-    public List<CrazyCredit> getCrazyCredits(int movieId) {
-
+    public Flux<CrazyCredit> getCrazyCredits(int movieId) {
         if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
 
-        List<CrazyCreditEntity> entityList = repository.findByMovieId(movieId);
-        List<CrazyCredit> list = mapper.entityListToApiList(entityList);
-        list.forEach(e -> e.setServiceAddress(serviceUtil.getServiceAddress()));
-
-        LOG.debug("getCrazyCredits: response size: {}", list.size());
-
-        return list;
+        return repository.findByMovieId(movieId)
+                .log()
+                .map(e -> mapper.entityToApi(e))
+                .map(e -> {e.setServiceAddress(serviceUtil.getServiceAddress()); return e;});
     }
 
     @Override
     public void deleteCrazyCredits(int movieId) {
+    	if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
         LOG.debug("deleteCrazyCredits: tries to delete crazy credits for the movie with movieId: {}", movieId);
-        repository.deleteAll(repository.findByMovieId(movieId));
+        repository.deleteAll(repository.findByMovieId(movieId)).block();
     }
 }

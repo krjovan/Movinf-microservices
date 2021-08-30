@@ -1,9 +1,8 @@
 package com.example.microservices.core.crazycredit.persistence;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
 
-import java.util.List;
-
-public interface CrazyCreditRepository extends CrudRepository<CrazyCreditEntity, String> {
-    List<CrazyCreditEntity> findByMovieId(int movieId);
+public interface CrazyCreditRepository extends ReactiveCrudRepository<CrazyCreditEntity, String> {
+    Flux<CrazyCreditEntity> findByMovieId(int movieId);
 }

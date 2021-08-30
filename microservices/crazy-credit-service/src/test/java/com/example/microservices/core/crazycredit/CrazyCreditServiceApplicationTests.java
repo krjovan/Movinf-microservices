@@ -6,17 +6,26 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.stream.messaging.Sink;
+import org.springframework.integration.channel.AbstractMessageChannel;
+import org.springframework.messaging.MessagingException;
+import org.springframework.messaging.support.GenericMessage;
 import com.example.api.core.crazycredit.CrazyCredit;
+import com.example.api.core.movie.Movie;
+import com.example.api.event.Event;
+import com.example.util.exceptions.InvalidInputException;
 import com.example.microservices.core.crazycredit.persistence.CrazyCreditRepository;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static reactor.core.publisher.Mono.just;
+import static com.example.api.event.Event.Type.CREATE;
+import static com.example.api.event.Event.Type.DELETE;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
@@ -27,11 +36,17 @@ public class CrazyCreditServiceApplicationTests {
 	
 	@Autowired
 	private CrazyCreditRepository repository;
+	
+	@Autowired
+	private Sink channels;
+
+	private AbstractMessageChannel input = null;
 
 
 	@Before
 	public void setupDb() {
-		repository.deleteAll();
+		input = (AbstractMessageChannel) channels.input();
+		repository.deleteAll().block();
 	}
 
 	@Test
@@ -39,11 +54,11 @@ public class CrazyCreditServiceApplicationTests {
 
 		int movieId = 1;
 
-		postAndVerifyCrazyCredit(movieId, 1, OK);
-		postAndVerifyCrazyCredit(movieId, 2, OK);
-		postAndVerifyCrazyCredit(movieId, 3, OK);
+		sendCreateCrazyCreditEvent(movieId, 1);
+		sendCreateCrazyCreditEvent(movieId, 2);
+		sendCreateCrazyCreditEvent(movieId, 3);
 
-		assertEquals(3, repository.findByMovieId(movieId).size());
+		assertEquals(3, (long)repository.findByMovieId(movieId).count().block());
 
 		getAndVerifyCrazyCreditsByMovieId(movieId, OK)
 			.jsonPath("$.length()").isEqualTo(3)
@@ -56,17 +71,23 @@ public class CrazyCreditServiceApplicationTests {
 		int movieId = 1;
 		int crazyCreditId = 1;
 
-		postAndVerifyCrazyCredit(movieId, crazyCreditId, OK)
-			.jsonPath("$.movieId").isEqualTo(movieId)
-			.jsonPath("$.crazyCreditId").isEqualTo(crazyCreditId);
+		sendCreateCrazyCreditEvent(movieId, crazyCreditId);
 
-		assertEquals(1, repository.count());
+		assertEquals(1, (long)repository.count().block());
 
-		postAndVerifyCrazyCredit(movieId, crazyCreditId, UNPROCESSABLE_ENTITY)
-			.jsonPath("$.path").isEqualTo("/crazy-credit")
-			.jsonPath("$.message").isEqualTo("Duplicate key, Movie Id: 1, CrazyCredit Id:1");
+		try {
+			sendCreateCrazyCreditEvent(movieId, crazyCreditId);
+			fail("Expected a MessagingException here!");
+		} catch (MessagingException me) {
+			if (me.getCause() instanceof InvalidInputException)	{
+				InvalidInputException iie = (InvalidInputException)me.getCause();
+				assertEquals("Duplicate key, Movie Id: 1, Crazy credit Id:1", iie.getMessage());
+			} else {
+				fail("Expected a InvalidInputException as the root cause!");
+			}
+		}
 
-		assertEquals(1, repository.count());
+		assertEquals(1, (long)repository.count().block());
 	}
 
 	@Test
@@ -74,13 +95,13 @@ public class CrazyCreditServiceApplicationTests {
 		int movieId = 1;
 		int crazyCreditId = 1;
 
-		postAndVerifyCrazyCredit(movieId, crazyCreditId, OK);
-		assertEquals(1, repository.findByMovieId(movieId).size());
+		sendCreateCrazyCreditEvent(movieId, crazyCreditId);
+		assertEquals(1, (long)repository.findByMovieId(movieId).count().block());
 
-		deleteAndVerifyCrazyCreditsByMovieId(movieId, OK);
-		assertEquals(0, repository.findByMovieId(movieId).size());
+		sendDeleteCrazyCreditEvent(movieId);
+		assertEquals(0, (long)repository.findByMovieId(movieId).count().block());
 
-		deleteAndVerifyCrazyCreditsByMovieId(movieId, OK);
+		sendDeleteCrazyCreditEvent(movieId);
 	}
 
 	@Test
@@ -126,24 +147,14 @@ public class CrazyCreditServiceApplicationTests {
 			.expectBody();
 	}
 
-	private WebTestClient.BodyContentSpec postAndVerifyCrazyCredit(int movieId, int crazyCreditId, HttpStatus expectedStatus) {
+	private void sendCreateCrazyCreditEvent(int movieId, int crazyCreditId) {
 		CrazyCredit crazyCredit = new CrazyCredit(movieId, crazyCreditId, "Content " + crazyCreditId, false, "SA");
-		return client.post()
-			.uri("/crazy-credit")
-			.body(just(crazyCredit), CrazyCredit.class)
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isEqualTo(expectedStatus)
-			.expectHeader().contentType(APPLICATION_JSON)
-			.expectBody();
+		Event<Integer, Movie> event = new Event(CREATE, movieId, crazyCredit);
+		input.send(new GenericMessage<>(event));
 	}
 
-	private WebTestClient.BodyContentSpec deleteAndVerifyCrazyCreditsByMovieId(int movieId, HttpStatus expectedStatus) {
-		return client.delete()
-			.uri("/crazy-credit?movieId=" + movieId)
-			.accept(APPLICATION_JSON)
-			.exchange()
-			.expectStatus().isEqualTo(expectedStatus)
-			.expectBody();
+	private void sendDeleteCrazyCreditEvent(int movieId) {
+		Event<Integer, Movie> event = new Event(DELETE, movieId, null);
+		input.send(new GenericMessage<>(event));
 	}
 }

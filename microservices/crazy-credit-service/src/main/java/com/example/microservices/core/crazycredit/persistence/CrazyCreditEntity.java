@@ -5,6 +5,8 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import static java.lang.String.format;
+
 @Document(collection="crazycredits")
 @CompoundIndex(name = "mov-cra-id", unique = true, def = "{'movieId': 1, 'crazyCreditId' : 1}")
 public class CrazyCreditEntity {
@@ -33,6 +35,11 @@ public class CrazyCreditEntity {
         this.crazyCreditId = crazyCreditId;
         this.content = content;
         this.spoiler = spoiler;
+    }
+    
+    @Override
+    public String toString() {
+        return format("CrazyCreditEntity: %s/%d", movieId, crazyCreditId);
     }
 
 	public String getId() {
