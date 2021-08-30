@@ -3,6 +3,7 @@ package com.example.microservices.core.review.persistence;
 import java.util.Date;
 
 import javax.persistence.*;
+import static java.lang.String.format;
 
 @Entity
 @Table(name = "reviews", indexes = { @Index(name = "reviews_unique_idx", unique = true, columnList = "movieId,reviewId") })
@@ -38,6 +39,11 @@ public class ReviewEntity {
         this.title = title;
         this.content = content;
         this.rating = rating;
+    }
+    
+    @Override
+    public String toString() {
+        return format("ReviewEntity: %s/%d", movieId, reviewId);
     }
 
 	public int getId() {
