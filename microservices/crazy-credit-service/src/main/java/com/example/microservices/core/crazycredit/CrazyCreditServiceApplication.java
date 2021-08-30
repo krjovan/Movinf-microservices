@@ -1,4 +1,4 @@
- package com.example.microservices.core.crazycredit;
+package com.example.microservices.core.crazycredit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

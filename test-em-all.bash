@@ -10,54 +10,58 @@
 #
 : ${HOST=localhost}
 : ${PORT=8080}
+: ${MOV_ID_REVS_TRI_CRA=2}
+: ${MOV_ID_NOT_FOUND=14}
+: ${MOV_ID_NO_TRI_NO_CRA=114}
+: ${MOV_ID_NO_REVS_NO_CRA=214}
 
 function assertCurl() {
 
-  local expectedHttpCode=$1
-  local curlCmd="$2 -w \"%{http_code}\""
-  local result=$(eval $curlCmd)
-  local httpCode="${result:(-3)}"
-  RESPONSE='' && (( ${#result} > 3 )) && RESPONSE="${result%???}"
+    local expectedHttpCode=$1
+    local curlCmd="$2 -w \"%{http_code}\""
+    local result=$(eval $curlCmd)
+    local httpCode="${result:(-3)}"
+    RESPONSE='' && (( ${#result} > 3 )) && RESPONSE="${result%???}"
 
-  if [ "$httpCode" = "$expectedHttpCode" ]
-  then
-    if [ "$httpCode" = "200" ]
+	if [ "$httpCode" = "$expectedHttpCode" ]
     then
-      echo "Test OK (HTTP Code: $httpCode)"
+        if [ "$httpCode" = "200" ]
+        then
+            echo "Test OK (HTTP Code: $httpCode)"
+        else
+            echo "Test OK (HTTP Code: $httpCode, $RESPONSE)"
+        fi
+        return 0
     else
-      echo "Test OK (HTTP Code: $httpCode, $RESPONSE)"
+        echo  "Test FAILED, EXPECTED HTTP Code: $expectedHttpCode, GOT: $httpCode, WILL ABORT!"
+        echo  "- Failing command: $curlCmd"
+        echo  "- Response Body: $RESPONSE"
+        return 1
     fi
-  else
-      echo  "Test FAILED, EXPECTED HTTP Code: $expectedHttpCode, GOT: $httpCode, WILL ABORT!"
-      echo  "- Failing command: $curlCmd"
-      echo  "- Response Body: $RESPONSE"
-      exit 1
-  fi
 }
 
 function assertEqual() {
 
-  local expected=$1
-  local actual=$2
+    local expected=$1
+    local actual=$2
 
-  if [ "$actual" = "$expected" ]
-  then
-    echo "Test OK (actual value: $actual)"
-  else
-    echo "Test FAILED, EXPECTED VALUE: $expected, ACTUAL VALUE: $actual, WILL ABORT"
-    exit 1
-  fi
+	if [ "$actual" = "$expected" ]
+    then
+        echo "Test OK (actual value: $actual)"
+        return 0
+    else
+        echo "Test FAILED, EXPECTED VALUE: $expected, ACTUAL VALUE: $actual, WILL ABORT"
+        return 1
+    fi
 }
 
 
 function testUrl() {
     url=$@
-    if curl $url -ks -f
+	if $url -ks -f
     then
-          echo "Ok"
           return 0
     else
-          echo -n "not yet"
           return 1
     fi;
 }
@@ -80,6 +84,50 @@ function waitForService() {
     done
 }
 
+function testCompositeCreated() {
+
+    # Expect that the Movie Composite for movieId $MOV_ID_REVS_TRI has been created with three reviews and three trivia
+    if ! assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI -s"
+    then
+        echo -n "FAIL"
+        return 1
+    fi
+
+    set +e
+    assertEqual "$MOV_ID_REVS_TRI" $(echo $RESPONSE | jq .movieId)
+    if [ "$?" -eq "1" ] ; then return 1; fi
+
+    assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
+    if [ "$?" -eq "1" ] ; then return 1; fi
+
+    assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
+    if [ "$?" -eq "1" ] ; then return 1; fi
+
+    set -e
+}
+
+function waitForMessageProcessing() {
+    echo "Wait for messages to be processed... "
+
+    # Give background processing some time to complete...
+    sleep 1
+
+    n=0
+    until testCompositeCreated
+    do
+        n=$((n + 1))
+        if [[ $n == 40 ]]
+        then
+            echo " Give up"
+            exit 1
+        else
+            sleep 6
+            echo -n ", retry #$n "
+        fi
+    done
+    echo "All messages are now processed!"
+}
+
 function recreateComposite() {
     local movieId=$1
     local composite=$2
@@ -89,13 +137,32 @@ function recreateComposite() {
 }
 
 function setupTestdata() {
+ body="{\"movieId\":$MOV_ID_NO_TRI_NO_CRA"
+    body+=\
+',"title":"Movie 114","releaseDate":"2021-08-12","country":"Country 114","budget":0,"gross":0,"runtime":0, "reviews":[
+	{"reviewId":1,"publishDate":"2021-08-12","title":"title 1","content":"content 1","rating":0},
+    {"reviewId":2,"publishDate":"2021-08-12","title":"title 2","content":"content 2","rating":0},
+    {"reviewId":3,"publishDate":"2021-08-12","title":"title 3","content":"content 3","rating":0}
+]}'
+    recreateComposite "$MOV_ID_NO_TRI_NO_CRA" "$body"
 
-    body=\
-'{"movieId":1,"title":"Movie 1","releaseDate":"2021-08-12","country":"Country 1","budget":0,"gross":0,"runtime":0, "trivia":[
-        {"triviaId":1,"publishDate":"2021-08-12","content":"content 1","spoiler":false},
+body="{\"movieId\":$MOV_ID_NO_REVS_NO_CRA"
+    body+=\
+',"title":"Movie 214","releaseDate":"2021-08-12","country":"Country 214","budget":0,"gross":0,"runtime":0, "trivia":[
+		{"triviaId":1,"publishDate":"2021-08-12","content":"content 1","spoiler":false},
         {"triviaId":2,"publishDate":"2021-08-12","content":"content 2","spoiler":false},
         {"triviaId":3,"publishDate":"2021-08-12","content":"content 3","spoiler":false}
-    ], "reviews":[
+	]
+}'
+    recreateComposite "$MOV_ID_NO_REVS_NO_CRA" "$body"
+	
+body="{\"movieId\":$MOV_ID_REVS_TRI_CRA"
+    body+=\
+',"title":"Movie 214","releaseDate":"2021-08-12","country":"Country 214","budget":0,"gross":0,"runtime":0, "trivia":[
+		{"triviaId":1,"publishDate":"2021-08-12","content":"content 1","spoiler":false},
+        {"triviaId":2,"publishDate":"2021-08-12","content":"content 2","spoiler":false},
+        {"triviaId":3,"publishDate":"2021-08-12","content":"content 3","spoiler":false}
+	], "reviews":[
         {"reviewId":1,"publishDate":"2021-08-12","title":"title 1","content":"content 1","rating":0},
         {"reviewId":2,"publishDate":"2021-08-12","title":"title 2","content":"content 2","rating":0},
         {"reviewId":3,"publishDate":"2021-08-12","title":"title 3","content":"content 3","rating":0}
@@ -104,34 +171,13 @@ function setupTestdata() {
         {"crazyCreditId":2,"content":"content 2","spoiler":false},
         {"crazyCreditId":3,"content":"content 3","spoiler":false}
     ]}'
-    recreateComposite 1 "$body"
-
-    body=\
-'{"movieId":113,"title":"Movie 113","releaseDate":"2021-08-12","country":"Country 113","budget":0,"gross":0,"runtime":0, "reviews":[
-	{"reviewId":1,"publishDate":"2021-08-12","title":"title 1","content":"content 1","rating":0},
-    {"reviewId":2,"publishDate":"2021-08-12","title":"title 2","content":"content 2","rating":0},
-    {"reviewId":3,"publishDate":"2021-08-12","title":"title 3","content":"content 3","rating":0}
-]}'
-    recreateComposite 113 "$body"
-
-    body=\
-'{"movieId":213,"title":"Movie 213","releaseDate":"2021-08-12","country":"Country 213","budget":0,"gross":0,"runtime":0, "trivia":[
-		{"triviaId":1,"publishDate":"2021-08-12","content":"content 1","spoiler":false},
-        {"triviaId":2,"publishDate":"2021-08-12","content":"content 2","spoiler":false},
-        {"triviaId":3,"publishDate":"2021-08-12","content":"content 3","spoiler":false}
-	], "crazyCredits":[
-        {"crazyCreditId":1,"content":"content 1","spoiler":false},
-        {"crazyCreditId":2,"content":"content 2","spoiler":false},
-        {"crazyCreditId":3,"content":"content 3","spoiler":false}
-	]
-}'
-    recreateComposite 213 "$body"
+    recreateComposite "$MOV_ID_REVS_TRI_CRA" "$body"
 
 }
 
 set -e
 
-echo "Start:" `date`
+echo "Start Tests:" `date`
 
 echo "HOST=${HOST}"
 echo "PORT=${PORT}"
@@ -139,39 +185,41 @@ echo "PORT=${PORT}"
 if [[ $@ == *"start"* ]]
 then
     echo "Restarting the test environment..."
-    echo "$ docker-compose down"
-    docker-compose down
+    echo "$ docker-compose down --remove-orphans"
+    docker-compose down --remove-orphans
     echo "$ docker-compose up -d"
     docker-compose up -d
 fi
 
-waitForService curl -X DELETE http://$HOST:$PORT/movie-composite/13
+waitForService curl http://$HOST:$PORT/actuator/health
 
 setupTestdata
 
+waitForMessageProcessing
+
 # Verify that a normal request works, expect three trivia, three reviews and three crazy credits
-assertCurl 200 "curl http://$HOST:$PORT/movie-composite/1 -s"
-assertEqual 1 $(echo $RESPONSE | jq .movieId)
+assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA -s"
+assertEqual "$MOV_ID_REVS_TRI_CRA" $(echo $RESPONSE | jq .movieId)
 assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
 assertEqual 3 $(echo $RESPONSE | jq ".crazyCredits | length")
 
-# Verify that a 404 (Not Found) error is returned for a non existing movieId (13)
-assertCurl 404 "curl http://$HOST:$PORT/movie-composite/13 -s"
+# Verify that a 404 (Not Found) error is returned for a non existing movieId ($MOV_ID_NOT_FOUND)
+assertCurl 404 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_NOT_FOUND -s"
 
-# Verify that no trivia are returned for movieId 113
-assertCurl 200 "curl http://$HOST:$PORT/movie-composite/113 -s"
-assertEqual 113 $(echo $RESPONSE | jq .movieId)
+# Verify that no trivia and no crazy credits are returned for movieId $MOV_ID_NO_TRI_NO_CRA
+assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_NO_TRI_NO_CRA -s"
+assertEqual "$MOV_ID_NO_TRI_NO_CRA" $(echo $RESPONSE | jq .movieId)
 assertEqual 0 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
 assertEqual 0 $(echo $RESPONSE | jq ".crazyCredits | length")
 
-# Verify that no reviews and no crazy credits are returned for movieId 213
-assertCurl 200 "curl http://$HOST:$PORT/movie-composite/213 -s"
-assertEqual 213 $(echo $RESPONSE | jq .movieId)
+# Verify that no reviews and no crazy credits are returned for movieId $MOV_ID_NO_REVS_NO_CRA
+assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_NO_REVS_NO_CRA -s"
+assertEqual "$MOV_ID_NO_REVS_NO_CRA" $(echo $RESPONSE | jq .movieId)
 assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 0 $(echo $RESPONSE | jq ".reviews | length")
-assertEqual 3 $(echo $RESPONSE | jq ".crazyCredits | length")
+assertEqual 0 $(echo $RESPONSE | jq ".crazyCredits | length")
 
 # Verify that a 422 (Unprocessable Entity) error is returned for a movieId that is out of range (-1)
 assertCurl 422 "curl http://$HOST:$PORT/movie-composite/-1 -s"
@@ -181,11 +229,11 @@ assertEqual "\"Invalid movieId: -1\"" "$(echo $RESPONSE | jq .message)"
 assertCurl 400 "curl http://$HOST:$PORT/movie-composite/invalidMovieId -s"
 assertEqual "\"Type mismatch.\"" "$(echo $RESPONSE | jq .message)"
 
+echo "End, all tests OK:" `date`
+
 if [[ $@ == *"stop"* ]]
 then
-    echo "We are done, stopping the test environment..."
-    echo "$ docker-compose down"
-    docker-compose down
+    echo "Stopping the test environment..."
+    echo "$ docker-compose down --remove-orphans"
+    docker-compose down --remove-orphans
 fi
-
-echo "End:" `date`
