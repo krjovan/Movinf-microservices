@@ -86,21 +86,24 @@ function waitForService() {
 
 function testCompositeCreated() {
 
-    # Expect that the Movie Composite for movieId $MOV_ID_REVS_TRI has been created with three reviews and three trivia
-    if ! assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI -s"
+    # Expect that the Movie Composite for movieId $MOV_ID_REVS_TRI_CRA has been created with three reviews, three trivia and three crazy credits
+    if ! assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA -s"
     then
         echo -n "FAIL"
         return 1
     fi
 
     set +e
-    assertEqual "$MOV_ID_REVS_TRI" $(echo $RESPONSE | jq .movieId)
+    assertEqual "$MOV_ID_REVS_TRI_CRA" $(echo $RESPONSE | jq .movieId)
     if [ "$?" -eq "1" ] ; then return 1; fi
 
     assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
     if [ "$?" -eq "1" ] ; then return 1; fi
 
     assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
+    if [ "$?" -eq "1" ] ; then return 1; fi
+	
+	assertEqual 3 $(echo $RESPONSE | jq ".crazyCredits | length")
     if [ "$?" -eq "1" ] ; then return 1; fi
 
     set -e
@@ -110,7 +113,7 @@ function waitForMessageProcessing() {
     echo "Wait for messages to be processed... "
 
     # Give background processing some time to complete...
-    sleep 1
+    sleep 5
 
     n=0
     until testCompositeCreated

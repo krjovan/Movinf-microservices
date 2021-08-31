@@ -74,7 +74,7 @@ public class TriviaServiceApplicationTests {
 
 		sendCreateTriviaEvent(movieId, triviaId);
 
-		assertEquals(1, repository.count());
+		assertEquals(1, (long)repository.count().block());
 
 		try {
 			sendCreateTriviaEvent(movieId, triviaId);
