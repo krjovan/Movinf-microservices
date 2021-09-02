@@ -16,7 +16,8 @@
 *.iws
 *.iml
 *.ipr
-out
+/out/
+bin
 
 ### NetBeans ###
 /nbproject/private/
@@ -24,5 +25,3 @@ out
 /dist/
 /nbdist/
 /.nb-gradle/
-.DS_Store
-ML-labb

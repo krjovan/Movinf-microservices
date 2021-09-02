@@ -48,19 +48,21 @@ api:
 server.port: 7000
 server.error.include-message: always
 
-app:
-  movie-service:
-    host: localhost
-    port: 7001
-  trivia-service:
-    host: localhost
-    port: 7002
-  review-service:
-    host: localhost
-    port: 7003
-  crazy-credit-service:
-    host: localhost
-    port: 7004
+spring.application.name: movie-composite
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+    initialInstanceInfoReplicationIntervalSeconds: 5
+    registryFetchIntervalSeconds: 5
+  instance:
+    leaseRenewalIntervalInSeconds: 5
+    leaseExpirationDurationInSeconds: 5
+
+ribbon.ServerListRefreshInterval: 5000
+
+ribbon.NFLoadBalancerPingInterval: 5
     
 spring.cloud.stream:
   defaultBinder: rabbit
@@ -105,19 +107,7 @@ spring.profiles: docker
 
 server.port: 8080
 
-app:
-  movie-service:
-    host: movie
-    port: 8080
-  trivia-service:
-    host: trivia
-    port: 8080
-  review-service:
-    host: review
-    port: 8080
-  crazy-credit-service:
-    host: crazy-credit
-    port: 8080
+eureka.client.serviceUrl.defaultZone: http://eureka:8761/eureka/
 
 spring.rabbitmq.host: rabbitmq
 

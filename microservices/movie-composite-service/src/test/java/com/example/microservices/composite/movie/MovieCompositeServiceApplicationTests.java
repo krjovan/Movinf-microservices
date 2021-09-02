@@ -30,7 +30,7 @@ import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment=RANDOM_PORT)
+@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"eureka.client.enabled=false"})
 public class MovieCompositeServiceApplicationTests {
 
 	private static final int MOVIE_ID_OK = 1;

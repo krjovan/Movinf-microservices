@@ -38,7 +38,7 @@ import static com.example.api.event.Event.Type.DELETE;
 import static com.example.microservices.composite.movie.IsSameEvent.sameEventExceptCreatedAt;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment=RANDOM_PORT)
+@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"eureka.client.enabled=false"})
 public class MessagingTests {
 
 	private static final int MOVIE_ID_OK = 1;

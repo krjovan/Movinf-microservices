@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.Output;
@@ -37,13 +36,15 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
 
     private static final Logger LOG = LoggerFactory.getLogger(MovieCompositeIntegration.class);
 
-    private final WebClient webClient;
+    private final String movieServiceUrl = "http://movie";
+    private final String triviaServiceUrl = "http://trivia";
+    private final String reviewServiceUrl = "http://review";
+    private final String crazyCreditServiceUrl = "http://crazy-credit";
+    
     private final ObjectMapper mapper;
-
-    private final String movieServiceUrl;
-    private final String triviaServiceUrl;
-    private final String reviewServiceUrl;
-    private final String crazyCreditServiceUrl;
+    private final WebClient.Builder webClientBuilder;
+    
+    private WebClient webClient;
     
     private MessageSources messageSources;
 
@@ -69,31 +70,13 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
 
     @Autowired
     public MovieCompositeIntegration(
-    	WebClient.Builder webClient,
+    	WebClient.Builder webClientBuilder,
         ObjectMapper mapper,
-        MessageSources messageSources,
-
-        @Value("${app.movie-service.host}") String movieServiceHost,
-        @Value("${app.movie-service.port}") int    movieServicePort,
-
-        @Value("${app.trivia-service.host}") String triviaServiceHost,
-        @Value("${app.trivia-service.port}") int    triviaServicePort,
-
-        @Value("${app.review-service.host}") String reviewServiceHost,
-        @Value("${app.review-service.port}") int    reviewServicePort,
-        
-        @Value("${app.crazy-credit-service.host}") String crazyCreditServiceHost,
-        @Value("${app.crazy-credit-service.port}") int    crazyCreditServicePort
+        MessageSources messageSources
     ) {
-
-    	this.webClient = webClient.build();
+    	this.webClientBuilder = webClientBuilder;
         this.mapper = mapper;
         this.messageSources = messageSources;
-
-        movieServiceUrl        = "http://" + movieServiceHost + ":" + movieServicePort;
-        triviaServiceUrl = "http://" + triviaServiceHost + ":" + triviaServicePort;
-        reviewServiceUrl         = "http://" + reviewServiceHost + ":" + reviewServicePort;
-        crazyCreditServiceUrl    = "http://" + crazyCreditServiceHost + ":" + crazyCreditServicePort;
     }
     
     @Override
@@ -106,7 +89,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     public Mono<Movie> getMovie(int movieId) {
     	String url = movieServiceUrl + "/movie/" + movieId;
         LOG.debug("Will call the getMovie API on URL: {}", url);
-        return webClient.get().uri(url).retrieve().bodyToMono(Movie.class).log().onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
+        return getWebClient().get().uri(url).retrieve().bodyToMono(Movie.class).log().onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
     }
     
     @Override
@@ -125,7 +108,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     	String url = triviaServiceUrl + "/trivia?movieId=" + movieId;
     	LOG.debug("Will call the getTrivia API on URL: {}", url);
     	// Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
-        return webClient.get().uri(url).retrieve().bodyToFlux(Trivia.class).log().onErrorResume(error -> empty());
+        return getWebClient().get().uri(url).retrieve().bodyToFlux(Trivia.class).log().onErrorResume(error -> empty());
     }
     
     @Override
@@ -144,7 +127,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     	String url = reviewServiceUrl + "/review?movieId=" + movieId;
     	LOG.debug("Will call the getReviews API on URL: {}", url);
         // Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
-        return webClient.get().uri(url).retrieve().bodyToFlux(Review.class).log().onErrorResume(error -> empty());
+        return getWebClient().get().uri(url).retrieve().bodyToFlux(Review.class).log().onErrorResume(error -> empty());
     }
     
     @Override
@@ -163,7 +146,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     	String url = crazyCreditServiceUrl + "/crazy-credit?movieId=" + movieId;
     	LOG.debug("Will call the getCrazyCredits API on URL: {}", url);
     	// Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
-        return webClient.get().uri(url).retrieve().bodyToFlux(CrazyCredit.class).log().onErrorResume(error -> empty());
+        return getWebClient().get().uri(url).retrieve().bodyToFlux(CrazyCredit.class).log().onErrorResume(error -> empty());
 	}
     
     @Override
@@ -190,10 +173,17 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     private Mono<Health> getHealth(String url) {
         url += "/actuator/health";
         LOG.debug("Will call the Health API on URL: {}", url);
-        return webClient.get().uri(url).retrieve().bodyToMono(String.class)
+        return getWebClient().get().uri(url).retrieve().bodyToMono(String.class)
             .map(s -> new Health.Builder().up().build())
             .onErrorResume(ex -> Mono.just(new Health.Builder().down(ex).build()))
             .log();
+    }
+    
+    private WebClient getWebClient() {
+        if (webClient == null) {
+            webClient = webClientBuilder.build();
+        }
+        return webClient;
     }
     
     private Throwable handleException(Throwable ex) {

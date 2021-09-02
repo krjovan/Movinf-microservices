@@ -9,6 +9,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import com.example.microservices.composite.movie.services.MovieCompositeIntegration;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.service.ApiInfo;
@@ -81,6 +83,13 @@ public class MovieCompositeServiceApplication {
 		registry.register("crazy-credit", () -> integration.getCrazyCreditHealth());
 
 		return new CompositeReactiveHealthIndicator(healthAggregator, registry);
+	}
+	
+	@Bean
+	@LoadBalanced
+	public WebClient.Builder loadBalancedWebClientBuilder() {
+		final WebClient.Builder builder = WebClient.builder();
+		return builder;
 	}
 
 	public static void main(String[] args) {

@@ -30,7 +30,7 @@ import static com.example.api.event.Event.Type.DELETE;
 import java.util.Date;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0"})
+@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"spring.data.mongodb.port: 0", "eureka.client.enabled=false"})
 public class TriviaServiceApplicationTests {
 
 	@Autowired

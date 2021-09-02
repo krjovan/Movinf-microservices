@@ -30,7 +30,10 @@ import static org.junit.Assert.fail;
 import java.util.Date;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {"logging.level.com.example=DEBUG","spring.datasource.url=jdbc:h2:mem:review-db"})
+@SpringBootTest(webEnvironment=RANDOM_PORT, properties = {
+		"logging.level.com.example=DEBUG",
+		"eureka.client.enabled=false",
+	    "spring.datasource.url=jdbc:h2:mem:review-db"})
 public class ReviewServiceApplicationTests {
 
 	@Autowired
