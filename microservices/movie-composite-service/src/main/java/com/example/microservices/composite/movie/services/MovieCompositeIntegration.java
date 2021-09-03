@@ -39,7 +39,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     private final String movieServiceUrl = "http://movie";
     private final String triviaServiceUrl = "http://trivia";
     private final String reviewServiceUrl = "http://review";
-    private final String crazyCreditServiceUrl = "http://crazy-credit";
+    private final String crazyCreditServiceUrl = "http://crazycredit";
     
     private final ObjectMapper mapper;
     private final WebClient.Builder webClientBuilder;
