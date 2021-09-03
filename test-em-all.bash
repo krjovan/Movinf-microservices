@@ -82,6 +82,7 @@ function waitForService() {
             echo -n ", retry #$n "
         fi
     done
+    echo "DONE, continues..."
 }
 
 function testCompositeCreated() {
