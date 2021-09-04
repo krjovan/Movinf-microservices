@@ -32,7 +32,7 @@ public interface MovieCompositeService {
     @PostMapping(
         value    = "/movie-composite",
         consumes = "application/json")
-    void createCompositeMovie(@RequestBody MovieAggregate body);
+    Mono<Void> createCompositeMovie(@RequestBody MovieAggregate body);
 	
 	
     /**
@@ -54,7 +54,6 @@ public interface MovieCompositeService {
         produces = "application/json")
 	Mono<MovieAggregate> getCompositeMovie(@PathVariable int movieId);
 
-
     /**
      * Sample usage:
      *
@@ -70,5 +69,5 @@ public interface MovieCompositeService {
         @ApiResponse(code = 422, message = "Unprocessable entity, input parameters caused the processing to fail. See response message for more information.")
     })
     @DeleteMapping(value = "/movie-composite/{movieId}")
-    void deleteCompositeMovie(@PathVariable int movieId);
+    Mono<Void> deleteCompositeMovie(@PathVariable int movieId);
 }
