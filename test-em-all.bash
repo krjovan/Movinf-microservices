@@ -9,7 +9,7 @@
 #   HOST=localhost PORT=7000 ./test-em-all.bash
 #
 : ${HOST=localhost}
-: ${PORT=8080}
+: ${PORT=8443}
 : ${MOV_ID_REVS_TRI_CRA=2}
 : ${MOV_ID_NOT_FOUND=14}
 : ${MOV_ID_NO_TRI_NO_CRA=114}
@@ -88,7 +88,7 @@ function waitForService() {
 function testCompositeCreated() {
 
     # Expect that the Movie Composite for movieId $MOV_ID_REVS_TRI_CRA has been created with three reviews, three trivia and three crazy credits
-    if ! assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA -s"
+    if ! assertCurl 200 "curl $AUTH -k https://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA -s"
     then
         echo -n "FAIL"
         return 1
@@ -136,8 +136,8 @@ function recreateComposite() {
     local movieId=$1
     local composite=$2
 
-    assertCurl 200 "curl -X DELETE http://$HOST:$PORT/movie-composite/${movieId} -s"
-    curl -X POST http://$HOST:$PORT/movie-composite -H "Content-Type: application/json" --data "$composite"
+    assertCurl 200 "curl $AUTH -X DELETE -k https://$HOST:$PORT/movie-composite/${movieId} -s"
+    curl -X POST -k https://$HOST:$PORT/movie-composite -H "Content-Type: application/json" -H "Authorization: Bearer $ACCESS_TOKEN" --data "$composite"
 }
 
 function setupTestdata() {
@@ -195,43 +195,56 @@ then
     docker-compose up -d
 fi
 
-waitForService curl http://$HOST:$PORT/actuator/health
+waitForService curl -k https://$HOST:$PORT/actuator/health
+
+ACCESS_TOKEN=$(curl -k https://writer:secret@$HOST:$PORT/oauth/token -d grant_type=password -d username=magnus -d password=password -s | jq .access_token -r)
+AUTH="-H \"Authorization: Bearer $ACCESS_TOKEN\""
 
 setupTestdata
 
 waitForMessageProcessing
 
 # Verify that a normal request works, expect three trivia, three reviews and three crazy credits
-assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA -s"
+assertCurl 200 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA $AUTH -s"
 assertEqual "$MOV_ID_REVS_TRI_CRA" $(echo $RESPONSE | jq .movieId)
 assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
 assertEqual 3 $(echo $RESPONSE | jq ".crazyCredits | length")
 
 # Verify that a 404 (Not Found) error is returned for a non existing movieId ($MOV_ID_NOT_FOUND)
-assertCurl 404 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_NOT_FOUND -s"
+assertCurl 404 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_NOT_FOUND $AUTH -s"
 
 # Verify that no trivia and no crazy credits are returned for movieId $MOV_ID_NO_TRI_NO_CRA
-assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_NO_TRI_NO_CRA -s"
+assertCurl 200 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_NO_TRI_NO_CRA $AUTH -s"
 assertEqual "$MOV_ID_NO_TRI_NO_CRA" $(echo $RESPONSE | jq .movieId)
 assertEqual 0 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 3 $(echo $RESPONSE | jq ".reviews | length")
 assertEqual 0 $(echo $RESPONSE | jq ".crazyCredits | length")
 
 # Verify that no reviews and no crazy credits are returned for movieId $MOV_ID_NO_REVS_NO_CRA
-assertCurl 200 "curl http://$HOST:$PORT/movie-composite/$MOV_ID_NO_REVS_NO_CRA -s"
+assertCurl 200 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_NO_REVS_NO_CRA $AUTH -s"
 assertEqual "$MOV_ID_NO_REVS_NO_CRA" $(echo $RESPONSE | jq .movieId)
 assertEqual 3 $(echo $RESPONSE | jq ".trivia | length")
 assertEqual 0 $(echo $RESPONSE | jq ".reviews | length")
 assertEqual 0 $(echo $RESPONSE | jq ".crazyCredits | length")
 
 # Verify that a 422 (Unprocessable Entity) error is returned for a movieId that is out of range (-1)
-assertCurl 422 "curl http://$HOST:$PORT/movie-composite/-1 -s"
+assertCurl 422 "curl -k https://$HOST:$PORT/movie-composite/-1 $AUTH -s"
 assertEqual "\"Invalid movieId: -1\"" "$(echo $RESPONSE | jq .message)"
 
 # Verify that a 400 (Bad Request) error error is returned for a movieId that is not a number, i.e. invalid format
-assertCurl 400 "curl http://$HOST:$PORT/movie-composite/invalidMovieId -s"
+assertCurl 400 "curl -k https://$HOST:$PORT/movie-composite/invalidMovieId $AUTH -s"
 assertEqual "\"Type mismatch.\"" "$(echo $RESPONSE | jq .message)"
+
+# Verify that a request without access token fails on 401, Unauthorized
+assertCurl 401 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA -s"
+
+# Verify that the reader - client with only read scope can call the read API but not delete API.
+READER_ACCESS_TOKEN=$(curl -k https://reader:secret@$HOST:$PORT/oauth/token -d grant_type=password -d username=magnus -d password=password -s | jq .access_token -r)
+READER_AUTH="-H \"Authorization: Bearer $READER_ACCESS_TOKEN\""
+
+assertCurl 200 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA $READER_AUTH -s"
+assertCurl 403 "curl -k https://$HOST:$PORT/movie-composite/$MOV_ID_REVS_TRI_CRA $READER_AUTH -X DELETE -s"
 
 echo "End, all tests OK:" `date`
 
