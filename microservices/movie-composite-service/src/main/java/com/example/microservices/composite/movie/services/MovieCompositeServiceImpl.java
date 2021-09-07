@@ -1,5 +1,6 @@
 package com.example.microservices.composite.movie.services;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import com.example.api.core.crazycredit.CrazyCredit;
 import com.example.api.core.movie.Movie;
 import com.example.api.core.review.Review;
 import com.example.api.core.trivia.Trivia;
+import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.ServiceUtil;
 
 import java.net.URL;
@@ -85,11 +87,12 @@ public class MovieCompositeServiceImpl implements MovieCompositeService {
     }
     
     @Override
-    public Mono<MovieAggregate> getCompositeMovie(int movieId) {
+    public Mono<MovieAggregate> getCompositeMovie(int movieId, int delay, int faultPercent) {
         return Mono.zip(
         		values -> createMovieAggregate((SecurityContext) values[0], (Movie) values[1], (List<Trivia>) values[2], (List<Review>) values[3], (List<CrazyCredit>) values[4], serviceUtil.getServiceAddress()),
                 ReactiveSecurityContextHolder.getContext().defaultIfEmpty(nullSC),
-                integration.getMovie(movieId),
+                integration.getMovie(movieId, delay, faultPercent)
+                	.onErrorReturn(CallNotPermittedException.class, getMovieFallbackValue(movieId)),
                 integration.getTrivia(movieId).collectList(),
                 integration.getReviews(movieId).collectList(),
                 integration.getCrazyCredits(movieId).collectList())
@@ -118,6 +121,19 @@ public class MovieCompositeServiceImpl implements MovieCompositeService {
             LOG.warn("deleteCompositeMovie failed: {}", re.toString());
             throw re;
         }
+    }
+    
+    private Movie getMovieFallbackValue(int movieId) {
+
+        LOG.warn("Creating a fallback movie for movieId = {}", movieId);
+
+        if (movieId == 13) {
+            String errMsg = "Movie Id: " + movieId + " not found in fallback cache!";
+            LOG.warn(errMsg);
+            throw new NotFoundException(errMsg);
+        }
+
+        return new Movie(movieId, "Fallback movie" + movieId, new Date(), "Country " + movieId, 0, 0, 0, serviceUtil.getServiceAddress());
     }
 	
 	private MovieAggregate createMovieAggregate(SecurityContext sc, Movie movie, List<Trivia> trivia, List<Review> reviews, List<CrazyCredit> crazyCredits, String serviceAddress) {

@@ -16,7 +16,11 @@ public interface MovieService {
     @GetMapping(
         value    = "/movie/{movieId}",
         produces = "application/json")
-    Mono<Movie> getMovie(@PathVariable int movieId);
+    Mono<Movie> getMovie(
+            @PathVariable int movieId,
+            @RequestParam(value = "delay", required = false, defaultValue = "0") int delay,
+            @RequestParam(value = "faultPercent", required = false, defaultValue = "0") int faultPercent
+       );
 
     void deleteMovie(@PathVariable int movieId);
 }

@@ -1,9 +1,12 @@
 package com.example.microservices.composite.movie.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.Output;
 import org.springframework.messaging.MessageChannel;
@@ -11,6 +14,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,6 +28,8 @@ import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.HttpErrorInfo;
 
 import java.io.IOException;
+import java.net.URI;
+import java.time.Duration;
 
 import static reactor.core.publisher.Flux.empty;
 import static com.example.api.event.Event.Type.CREATE;
@@ -45,7 +51,9 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     
     private WebClient webClient;
     
-    private MessageSources messageSources;
+    private final MessageSources messageSources;
+
+    private final int movieServiceTimeoutSec;
 
     public interface MessageSources {
 
@@ -71,11 +79,13 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     public MovieCompositeIntegration(
     	WebClient.Builder webClientBuilder,
         ObjectMapper mapper,
-        MessageSources messageSources
+        MessageSources messageSources,
+        @Value("${app.movie-service.timeoutSec}") int movieServiceTimeoutSec
     ) {
     	this.webClientBuilder = webClientBuilder;
         this.mapper = mapper;
         this.messageSources = messageSources;
+        this.movieServiceTimeoutSec = movieServiceTimeoutSec;
     }
     
     @Override
@@ -84,11 +94,17 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
         return body;
     }
 
+    @Retry(name = "movie")
+    @CircuitBreaker(name = "movie")
     @Override
-    public Mono<Movie> getMovie(int movieId) {
-    	String url = movieServiceUrl + "/movie/" + movieId;
+    public Mono<Movie> getMovie(int movieId, int delay, int faultPercent) {
+
+        URI url = UriComponentsBuilder.fromUriString(movieServiceUrl + "/movie/{movieId}?delay={delay}&faultPercent={faultPercent}").build(movieId, delay, faultPercent);
         LOG.debug("Will call the getMovie API on URL: {}", url);
-        return getWebClient().get().uri(url).retrieve().bodyToMono(Movie.class).log().onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
+        return getWebClient().get().uri(url)
+                .retrieve().bodyToMono(Movie.class).log()
+                .onErrorMap(WebClientResponseException.class, ex -> handleException(ex))
+                .timeout(Duration.ofSeconds(movieServiceTimeoutSec));
     }
     
     @Override
@@ -104,7 +120,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
     
     @Override
     public Flux<Trivia> getTrivia(int movieId) {
-    	String url = triviaServiceUrl + "/trivia?movieId=" + movieId;
+    	URI url = UriComponentsBuilder.fromUriString(triviaServiceUrl + "/trivia?movieId={movieId}").build(movieId);
     	LOG.debug("Will call the getTrivia API on URL: {}", url);
     	// Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
         return getWebClient().get().uri(url).retrieve().bodyToFlux(Trivia.class).log().onErrorResume(error -> empty());
@@ -123,7 +139,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
 
     @Override
     public Flux<Review> getReviews(int movieId) {
-    	String url = reviewServiceUrl + "/review?movieId=" + movieId;
+    	URI url = UriComponentsBuilder.fromUriString(reviewServiceUrl + "/review?movieId={movieId}").build(movieId);
     	LOG.debug("Will call the getReviews API on URL: {}", url);
         // Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
         return getWebClient().get().uri(url).retrieve().bodyToFlux(Review.class).log().onErrorResume(error -> empty());
@@ -142,7 +158,7 @@ public class MovieCompositeIntegration implements MovieService, TriviaService, R
 
     @Override
 	public Flux<CrazyCredit> getCrazyCredits(int movieId) {
-    	String url = crazyCreditServiceUrl + "/crazy-credit?movieId=" + movieId;
+    	URI url = UriComponentsBuilder.fromUriString(crazyCreditServiceUrl + "/crazy-credit?movieId={movieId}").build(movieId);
     	LOG.debug("Will call the getCrazyCredits API on URL: {}", url);
     	// Return an empty result if something goes wrong to make it possible for the composite service to return partial responses
         return getWebClient().get().uri(url).retrieve().bodyToFlux(CrazyCredit.class).log().onErrorResume(error -> empty());

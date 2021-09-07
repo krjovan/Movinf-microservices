@@ -4,6 +4,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static java.util.Collections.singletonList;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import org.springframework.http.HttpStatus;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -49,7 +51,7 @@ public class MovieCompositeServiceApplicationTests {
 	@Before
 	public void setUp() {
 
-		when(compositeIntegration.getMovie(MOVIE_ID_OK)).
+		when(compositeIntegration.getMovie(eq(MOVIE_ID_OK), anyInt(), anyInt())).
 			thenReturn(Mono.just(new Movie(MOVIE_ID_OK, "Test Title", new Date(), "Test country", 0, 0, 0, "mock-address")));
 		when(compositeIntegration.getTrivia(MOVIE_ID_OK)).
 			thenReturn(Flux.fromIterable(singletonList(new Trivia(MOVIE_ID_OK, 1, new Date(), "Test content", false, "mock address"))));
@@ -58,9 +60,9 @@ public class MovieCompositeServiceApplicationTests {
 		when(compositeIntegration.getCrazyCredits(MOVIE_ID_OK)).
 			thenReturn(Flux.fromIterable(singletonList(new CrazyCredit(MOVIE_ID_OK, 1, "Test content", false, "mock address"))));
 		
-		when(compositeIntegration.getMovie(MOVIE_ID_NOT_FOUND)).thenThrow(new NotFoundException("NOT FOUND: " + MOVIE_ID_NOT_FOUND));
+		when(compositeIntegration.getMovie(eq(MOVIE_ID_NOT_FOUND), anyInt(), anyInt())).thenThrow(new NotFoundException("NOT FOUND: " + MOVIE_ID_NOT_FOUND));
 
-		when(compositeIntegration.getMovie(MOVIE_ID_INVALID)).thenThrow(new InvalidInputException("INVALID: " + MOVIE_ID_INVALID));
+		when(compositeIntegration.getMovie(eq(MOVIE_ID_INVALID), anyInt(), anyInt())).thenThrow(new InvalidInputException("INVALID: " + MOVIE_ID_INVALID));
 	}
 
 	@Test

@@ -12,6 +12,8 @@ import com.example.util.exceptions.InvalidInputException;
 import com.example.util.exceptions.NotFoundException;
 import com.example.util.http.ServiceUtil;
 
+import java.util.Random;
+
 import com.example.microservices.core.movie.persistence.MovieEntity;
 import com.example.microservices.core.movie.persistence.MovieRepository;
 
@@ -50,8 +52,12 @@ public class MovieServiceImpl implements MovieService {
     }
 
     @Override
-    public Mono<Movie> getMovie(int movieId) {
+    public Mono<Movie> getMovie(int movieId, int delay, int faultPercent) {
         if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
+        
+        if (delay > 0) simulateDelay(delay);
+
+        if (faultPercent > 0) throwErrorIfBadLuck(faultPercent);
 
         return repository.findByMovieId(movieId)
                 .switchIfEmpty(error(new NotFoundException("No movie found for movieId: " + movieId)))
@@ -65,5 +71,31 @@ public class MovieServiceImpl implements MovieService {
     	if (movieId < 1) throw new InvalidInputException("Invalid movieId: " + movieId);
         LOG.debug("deleteMovie: tries to delete an entity with movieId: {}", movieId);
         repository.findByMovieId(movieId).log().map(e -> repository.delete(e)).flatMap(e -> e).block();
+    }
+    
+    private void simulateDelay(int delay) {
+        LOG.debug("Sleeping for {} seconds...", delay);
+        try {Thread.sleep(delay * 1000);} catch (InterruptedException e) {}
+        LOG.debug("Moving on...");
+    }
+
+    private void throwErrorIfBadLuck(int faultPercent) {
+        int randomThreshold = getRandomNumber(1, 100);
+        if (faultPercent < randomThreshold) {
+            LOG.debug("We got lucky, no error occurred, {} < {}", faultPercent, randomThreshold);
+        } else {
+            LOG.debug("Bad luck, an error occurred, {} >= {}", faultPercent, randomThreshold);
+            throw new RuntimeException("Something went wrong...");
+        }
+    }
+
+    private final Random randomNumberGenerator = new Random();
+    private int getRandomNumber(int min, int max) {
+
+        if (max < min) {
+            throw new RuntimeException("Max must be greater than min");
+        }
+
+        return randomNumberGenerator.nextInt((max - min) + 1) + min;
     }
 }

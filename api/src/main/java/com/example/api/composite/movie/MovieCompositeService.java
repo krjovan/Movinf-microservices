@@ -52,7 +52,11 @@ public interface MovieCompositeService {
     @GetMapping(
         value    = "/movie-composite/{movieId}",
         produces = "application/json")
-	Mono<MovieAggregate> getCompositeMovie(@PathVariable int movieId);
+	Mono<MovieAggregate> getCompositeMovie(
+        @PathVariable int movieId,
+        @RequestParam(value = "delay", required = false, defaultValue = "0") int delay,
+        @RequestParam(value = "faultPercent", required = false, defaultValue = "0") int faultPercent
+	);
 
     /**
      * Sample usage:
