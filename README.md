@@ -25,3 +25,21 @@ The database schema can be seen in the following picture along with all the attr
 The logic for retrieving data for the movie composite microservice is a non-blocking synchronous call to all four core microservices. This reactive approach means that the requests for data are sent parallel to all four core microservices. This logic is achieved using Project Reactor, it uses two types of objects `Flux` and `Mono`. `Flux` objects are used for streams that have 0 to N elements while `Mono` objects are used for streams with 0 to 1 elements. The project is configured in such a way that if a `GET` request is made to a microservice that returns `Flux` obejects (Trivia, CrazyCredit and Review) and which is currently not available it will, instead of throwing and exception, return an empty list.
 
 In contrast to the approach used for the retrieving of data, for creating and deleting, an event-driven asynchronous approach is used. The movie composite microservice will publish a `CREATE` or `DELETE` event that will go to the respective `topic` of a certain microservice. The response that the client will get will be `200 OK` irrelevant of whether the `CREATE` or `DELETE` operation was executed or not, thus allowing uninterrupted use. The core microservices will consume the events stored in their respective `topic`. To achieve this, Spring Cloud Stream is used which also allows for effortless switching from one message system to another. In the case of this project, the messaging systems that are used are RabbitMQ and Apache Kafka.
+
+## Microservice landscape
+
+In the following image, the microservice landscape can be seen.
+
+![Microservice landscape](./diagrams/microservice_landscape.png)
+
+## Prerequisites
+
+- `jq` - downoload `jq` and add it to the `Path` system environment variable. Make sure that the file is named `jq`. Download `jq` from [here](https://stedolan.github.io/jq/download/). Alternatively, you can use some of the available installers.
+- `Docker` and `docker-compose` - downoload and install `Docker Desktop` from [here](https://docs.docker.com/desktop/windows/install/) for Windows. Alternatively, for other OSs follow the steps on the `Docker` [web site](https://docs.docker.com/desktop/).
+- Enable virtualization - if virtualization is not enabled, enable it in the BIOS settings.
+
+## CD Pipeline *build/test/deploy*
+
+```./gradlew clean build && docker-compose build && docker-compose up -d```
+
+After this, you can run `bash test-em-all.bash` to test endpoints and general functionality of the system. If the build is complete and you want to start and test the system, you can run `./test-em-all.bash start` which will leave the system running but `./test-em-all.bash start stop` will after testing, stop it. Also to stop the system at any time, use the command `docker-compose down`.
